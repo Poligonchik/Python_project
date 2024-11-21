@@ -1,6 +1,7 @@
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ConversationHandler, ContextTypes, filters
 from bot.databases.db_user import init_db_user, add_user, get_user_by_link
+from bot.databases.db_statistic import init_db_statistic, create_statistic, add_time_to_alltime
 
 # Этапы диалога ПРИМЕР
 START, CHOICE, MEETING_OPTION, SET_TIME = range(4)
@@ -20,7 +21,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
         google_calendar_link = "Пока не реализовано"
         user_id = add_user(user.full_name, telegram_link, google_calendar_link)
-
+        create_statistic(user_id)
         await update.message.reply_text(f"Отлично, теперь Вы зарегистрированы с ID {user_id}.")
 
     reply_keyboard = [["Изменить данные пользователя", "Добавить встречу", "Статистика"]]
@@ -81,6 +82,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 # Основная функция
 if __name__ == "__main__":
     init_db_user()
+    init_db_statistic()
     app = ApplicationBuilder().token("7594370282:AAGpyh78Cr9TXqWyxYlBBJDv_BN34V2e5Jw").build()
 
     app.add_handler(CommandHandler("help", help))
