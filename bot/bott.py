@@ -1,5 +1,7 @@
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ConversationHandler, ContextTypes, filters
+from db_user import init_db_user, add_user, get_user_by_link
+from delete_all_db import clear_database
 
 # Этапы диалога ПРИМЕР
 START, CHOICE, MEETING_OPTION, SET_TIME = range(4)
@@ -7,10 +9,25 @@ START, CHOICE, MEETING_OPTION, SET_TIME = range(4)
 # Команда /start
 # Начало диалога
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    user = update.message.from_user
+    telegram_link = user.username if user.username else user.id
+
+    #Проверка зарегистрирован ли пользователь
+    curr_user = get_user_by_link(telegram_link)
+    if curr_user:
+        await update.message.reply_text(f"Привет, {curr_user[1]}! Рады снова вас видеть!")
+    else:
+        await update.message.reply_text(f"Здравствуйте, {user.username}, чтобы использовать бота, пришлите ссылку на Ваш google календарь.")
+
+        google_calendar_link = "Пока не реализовано"
+        user_id = add_user(user.full_name, telegram_link, google_calendar_link)
+
+        await update.message.reply_text(f"Отлично, теперь Вы зарегистрированы с ID {user_id}.")
+
     reply_keyboard = [["Изменить данные пользователя", "Добавить встречу", "Статистика"]]
 
     await update.message.reply_text(
-        "Привет, я телеграмм бот консьерж! Что вы хотите сделать?",
+        "Что вы хотите сделать?",
         reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True),
     )
     return CHOICE
@@ -64,6 +81,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # Основная функция
 if __name__ == "__main__":
+    init_db_user()
     app = ApplicationBuilder().token("7594370282:AAGpyh78Cr9TXqWyxYlBBJDv_BN34V2e5Jw").build()
 
     app.add_handler(CommandHandler("help", help))
