@@ -1,0 +1,5 @@
+pip install -r requirements.txt
+для скачивания библиотек
+
+git pull origin main
+не забывайте пушиться на актуальную версию!
