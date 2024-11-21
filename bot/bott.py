@@ -1,8 +1,11 @@
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ConversationHandler, ContextTypes, filters
 from bot.databases.db_user import init_db_user, add_user, get_user_by_link
+from bot.databases.db_meet import init_db_meet, create_meet
+from bot.databases.db_team import init_db_team, create_team
 from bot.databases.db_statistic import init_db_statistic, create_statistic, add_time_to_alltime
 from bot.databases.db_sleep_time import init_db_sleep_time, create_sleep_time, edit_sleep_time
+from bot.databases.db_black_list import init_db_black_list, create_block
 
 # Этапы диалога ПРИМЕР
 START, CHOICE, MEETING_OPTION, SET_TIME = range(4)
@@ -84,8 +87,11 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 # Основная функция
 if __name__ == "__main__":
     init_db_user()
+    init_db_meet()
+    init_db_team()
     init_db_statistic()
     init_db_sleep_time()
+    init_db_black_list()
     app = ApplicationBuilder().token("7594370282:AAGpyh78Cr9TXqWyxYlBBJDv_BN34V2e5Jw").build()
 
     app.add_handler(CommandHandler("help", help))

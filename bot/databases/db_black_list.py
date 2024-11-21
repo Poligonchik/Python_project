@@ -14,7 +14,7 @@ def init_db_black_list():
     conn.close()
 
 # Функция для добавления блокировки
-def create_statistic(user_id: int, blocked_user_id: int):
+def create_block(user_id: int, blocked_user_id: int):
     conn = sqlite3.connect("black_list.db")
     cursor = conn.cursor()
     cursor.execute("""
