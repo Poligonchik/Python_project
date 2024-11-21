@@ -16,16 +16,14 @@ def init_db_sleep_time():
 
 
 # Функция для добавления статистики для пользователя
-def create_sleep_time(user_id: int) -> int:
+def create_sleep_time(user_id: int):
     conn = sqlite3.connect("sleep_time.db")
     cursor = conn.cursor()
     cursor.execute("""
             INSERT INTO statistic (UserId) VALUES (?)
         """, (user_id,))
-    user_id = cursor.lastrowid
     conn.commit()
     conn.close()
-    return user_id
 
 
 # Функция для добавления статистики встречи

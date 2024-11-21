@@ -15,16 +15,14 @@ def init_db_statistic():
     conn.close()
 
 # Функция для добавления статистики для пользователя
-def create_statistic(user_id: int) -> int:
+def create_statistic(user_id: int):
     conn = sqlite3.connect("statistic.db")
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO statistic (UserId) VALUES (?)
     """, (user_id,))
-    user_id = cursor.lastrowid
     conn.commit()
     conn.close()
-    return user_id
 
 # Функция для добавления статистики встречи
 def add_time_to_alltime(user_id: int, additional_time: int):
