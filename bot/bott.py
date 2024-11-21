@@ -1,7 +1,6 @@
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ConversationHandler, ContextTypes, filters
-from db_user import init_db_user, add_user, get_user_by_link
-from delete_all_db import clear_database
+from bot.databases.db_user import init_db_user, add_user, get_user_by_link
 
 # Этапы диалога ПРИМЕР
 START, CHOICE, MEETING_OPTION, SET_TIME = range(4)
