@@ -19,5 +19,7 @@ def main():
     # Запускаем бота
     application.run_polling()
 
+    #ПРИВЕЕЕЕЕТ
+
 if __name__ == "__main__":
     main()
