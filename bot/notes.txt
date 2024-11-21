@@ -3,3 +3,6 @@ pip install -r requirements.txt
 
 git pull origin main
 не забывайте пушиться на актуальную версию!
+
+7594370282:AAGpyh78Cr9TXqWyxYlBBJDv_BN34V2e5Jw
+наш токен
