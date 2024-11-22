@@ -8,7 +8,7 @@ from bot.databases.db_sleep_time import init_db_sleep_time, create_sleep_time, e
 from bot.databases.db_black_list import init_db_black_list, create_block
 
 # Этапы диалога
-START, CHOICE, CHOICE_EDIT_DATA, EDIT_NAME, EDIT_TIME_FROM, EDIT_TIME_TO, MEETING_OPTION, SET_TIME = range(8)
+START, CHOICE, CHOICE_EDIT_DATA, EDIT_NAME, EDIT_TIME_FROM, EDIT_TIME_TO, BLOCK_USER, MEETING_OPTION, SET_TIME = range(9)
 
 # Команда /start
 # Начало диалога
@@ -41,8 +41,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.message.text == "Изменить данные пользователя":
         reply_keyboard = [["Сменить имя", "Изменить Гугл Календарь", "Изменить время сна", "Добавить пользователя в черный список"]]
+        user = update.message.from_user
         await update.message.reply_text(
-            "Вы выбрали изменить данные. Какие данные вы хотите изменить?",
+            f"Вы выбрали изменить данные. Ваши данные:\n Имя пользователя {user.full_name}\n ТГ id {user.username}\n Время сна\n Гугл календарь \nКакие данные вы хотите изменить?",
             reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True),
         )
         return CHOICE_EDIT_DATA
@@ -100,6 +101,21 @@ async def handle_sleep_time(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await update.message.reply_text(f"Время сна успешно изменено.")
     return ConversationHandler.END
 
+# Замена данных в профиле вспомогательные функция замены имени
+async def add_user_to_black_list_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.message.reply_text("Отправьте ник пользователя(@user) в формате user, без @")
+    return BLOCK_USER
+
+
+async def handle_block(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    blocked_user = update.message.text
+    user_id = update.effective_user.id
+
+    create_block(user_id, blocked_user)
+
+    await update.message.reply_text(f"Вы успешно заблокировали пользователя {blocked_user}!")
+    return ConversationHandler.END
+
 # Замена данных в профиле основная функция
 async def choice_edit_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.message.text == "Сменить имя":
@@ -112,7 +128,7 @@ async def choice_edit_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return await edit_sleep_time_prompt(update, context)
 
     elif update.message.text == "Добавить пользователя в черный список":
-        pass
+        return await add_user_to_black_list_prompt(update, context)
 
     else:
         await update.message.reply_text("Пожалуйста, выберите из предложенных вариантов.")
@@ -166,6 +182,7 @@ if __name__ == "__main__":
             EDIT_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_new_name)],
             EDIT_TIME_FROM: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_sleep_time_prompt2)],
             EDIT_TIME_TO: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_sleep_time)],
+            BLOCK_USER: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_block)],
             MEETING_OPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, meeting_option)],
             SET_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_time)],
         },
