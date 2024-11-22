@@ -27,19 +27,26 @@ def create_sleep_time(user_id: int):
 
 
 # Функция для добавления статистики встречи
-def edit_sleep_time(user_id: int, time_from: int, time_to: int):
+def edit_sleep_time_from(user_id: int, time_from: int):
     conn = sqlite3.connect("sleep_time.db")
     cursor = conn.cursor()
 
     cursor.execute("""
             UPDATE sleep_time
-            SET time_from = ?
+            SET TimeFrom = ?
             WHERE UserId = ?
         """, (time_from, user_id))
 
+    conn.commit()
+    conn.close()
+
+def edit_sleep_time_to(user_id: int, time_to: int):
+    conn = sqlite3.connect("sleep_time.db")
+    cursor = conn.cursor()
+
     cursor.execute("""
             UPDATE sleep_time
-            SET time_to = ?
+            SET TimeTo = ?
             WHERE UserId = ?
         """, (time_to, user_id))
 

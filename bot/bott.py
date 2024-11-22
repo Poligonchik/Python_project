@@ -1,14 +1,14 @@
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ConversationHandler, ContextTypes, filters
-from bot.databases.db_user import init_db_user, add_user, get_user_by_link
+from bot.databases.db_user import init_db_user, add_user, get_user_by_link, edit_user_name
 from bot.databases.db_meet import init_db_meet, create_meet
 from bot.databases.db_team import init_db_team, create_team
 from bot.databases.db_statistic import init_db_statistic, create_statistic, add_time_to_alltime
-from bot.databases.db_sleep_time import init_db_sleep_time, create_sleep_time, edit_sleep_time
+from bot.databases.db_sleep_time import init_db_sleep_time, create_sleep_time, edit_sleep_time_to, edit_sleep_time_from
 from bot.databases.db_black_list import init_db_black_list, create_block
 
-# Этапы диалога ПРИМЕР
-START, CHOICE, MEETING_OPTION, SET_TIME = range(4)
+# Этапы диалога
+START, CHOICE, CHOICE_EDIT_DATA, EDIT_NAME, EDIT_TIME_FROM, EDIT_TIME_TO, MEETING_OPTION, SET_TIME = range(8)
 
 # Команда /start
 # Начало диалога
@@ -21,7 +21,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if curr_user:
         await update.message.reply_text(f"Привет, {curr_user[1]}! Рады снова вас видеть!")
     else:
-        await update.message.reply_text(f"Здравствуйте, {user.username}, чтобы использовать бота, пришлите ссылку на Ваш google календарь.")
+        await update.message.reply_text(f"Здравствуйте, {user.full_name}, чтобы использовать бота, пришлите ссылку на Ваш google календарь.")
 
         google_calendar_link = "Пока не реализовано"
         user_id = add_user(user.full_name, telegram_link, google_calendar_link)
@@ -40,8 +40,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 # Выбор действия
 async def choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.message.text == "Изменить данные пользователя":
-        await update.message.reply_text("Вы выбрали изменить данные. Пока это действие не реализовано.")
-        return ConversationHandler.END
+        reply_keyboard = [["Сменить имя", "Изменить Гугл Календарь", "Изменить время сна", "Добавить пользователя в черный список"]]
+        await update.message.reply_text(
+            "Вы выбрали изменить данные. Какие данные вы хотите изменить?",
+            reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True),
+        )
+        return CHOICE_EDIT_DATA
+
     elif update.message.text == "Добавить встречу":
         #ВЫБОР НАЗВАНИЯ, ПОЛЬЗОВАТЕЛЕЙ
         reply_keyboard = [["Автоустановка времени", "Ввести время вручную"]]
@@ -56,6 +61,62 @@ async def choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     else:
         await update.message.reply_text("Пожалуйста, выберите из предложенных вариантов.")
         return CHOICE
+
+# Замена данных в профиле вспомогательные функция замены имени
+async def edit_user_name_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.message.reply_text("Пожалуйста, отправьте новое имя:")
+    return EDIT_NAME
+
+
+async def handle_new_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    new_name = update.message.text
+    user_id = update.effective_user.id
+
+    edit_user_name(user_id, new_name)
+
+    await update.message.reply_text(f"Имя успешно изменено на {new_name}!")
+    return ConversationHandler.END
+
+# Замена данных в профиле вспомогательные функция замены времени сна
+async def edit_sleep_time_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.message.reply_text("Пожалуйста, отправьте новое время начала сна в формате ЧЧ:ММ (например, 22:30):")
+    return EDIT_TIME_FROM
+
+async def edit_sleep_time_prompt2(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    new_time_from = update.message.text
+    user_id = update.effective_user.id
+
+    edit_sleep_time_from(user_id, int(new_time_from))
+
+    await update.message.reply_text("Пожалуйста, отправьте новое время окончания сна в формате ЧЧ:ММ (например, 9:30):")
+    return EDIT_TIME_TO
+
+async def handle_sleep_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    new_time_to = update.message.text
+    user_id = update.effective_user.id
+
+    edit_sleep_time_to(user_id, int(new_time_to))
+
+    await update.message.reply_text(f"Время сна успешно изменено.")
+    return ConversationHandler.END
+
+# Замена данных в профиле основная функция
+async def choice_edit_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if update.message.text == "Сменить имя":
+        return await edit_user_name_prompt(update, context)
+
+    elif update.message.text == "Изменить Гугл Календарь":
+        pass
+
+    elif update.message.text == "Изменить время сна":
+        return await edit_sleep_time_prompt(update, context)
+
+    elif update.message.text == "Добавить пользователя в черный список":
+        pass
+
+    else:
+        await update.message.reply_text("Пожалуйста, выберите из предложенных вариантов.")
+        return CHOICE_EDIT_DATA
 
 # Выбор метода добавления встречи
 async def meeting_option(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -101,6 +162,10 @@ if __name__ == "__main__":
         entry_points=[CommandHandler("start", start)],
         states={
             CHOICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, choice)],
+            CHOICE_EDIT_DATA: [MessageHandler(filters.TEXT & ~filters.COMMAND, choice_edit_data)],
+            EDIT_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_new_name)],
+            EDIT_TIME_FROM: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_sleep_time_prompt2)],
+            EDIT_TIME_TO: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_sleep_time)],
             MEETING_OPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, meeting_option)],
             SET_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_time)],
         },

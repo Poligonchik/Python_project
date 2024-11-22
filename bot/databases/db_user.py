@@ -37,3 +37,17 @@ def get_user_by_link(telegram_link: str):
     user = cursor.fetchone()
     conn.close()
     return user
+
+# Функция для смены имени
+def edit_user_name(user_id: int, new_name: str):
+    conn = sqlite3.connect("users.db")
+    cursor = conn.cursor()
+
+    cursor.execute("""
+            UPDATE users
+            SET Name = ?
+            WHERE UserId = ?
+        """, (new_name, user_id))
+
+    conn.commit()
+    conn.close()
