@@ -1,11 +1,11 @@
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ConversationHandler, ContextTypes, filters
-from bot.databases.db_user import init_db_user, add_user, get_user_by_link, edit_user_name
-from bot.databases.db_meet import init_db_meet, create_meet
-from bot.databases.db_team import init_db_team, create_team
-from bot.databases.db_statistic import init_db_statistic, create_statistic, add_time_to_alltime
-from bot.databases.db_sleep_time import init_db_sleep_time, create_sleep_time, edit_sleep_time_to, edit_sleep_time_from
-from bot.databases.db_black_list import init_db_black_list, create_block
+from bot.databases_methods.db_user import init_db_user, add_user, get_user_by_link, edit_user_name
+from bot.databases_methods.db_meet import init_db_meet, create_meet
+from bot.databases_methods.db_team import init_db_team, create_team
+from bot.databases_methods.db_statistic import init_db_statistic, create_statistic, add_time_to_alltime
+from bot.databases_methods.db_sleep_time import init_db_sleep_time, create_sleep_time, edit_sleep_time_to, edit_sleep_time_from
+from bot.databases_methods.db_black_list import init_db_black_list, create_block
 from edit_command import get_edit_handler
 # Этапы диалога
 START, CHOICE, MEETING_OPTION, SET_TIME = range(4)

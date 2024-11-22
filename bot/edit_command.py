@@ -1,8 +1,8 @@
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, CommandHandler, filters
-from bot.databases.db_user import edit_user_name, get_user_by_link
-from bot.databases.db_sleep_time import edit_sleep_time_to, edit_sleep_time_from
-from bot.databases.db_black_list import create_block
+from bot.databases_methods.db_user import edit_user_name, get_user_by_link
+from bot.databases_methods.db_sleep_time import edit_sleep_time_to, edit_sleep_time_from
+from bot.databases_methods.db_black_list import create_block
 
 # Этапы диалога
 CHOICE_EDIT_DATA, EDIT_NAME, EDIT_TIME_FROM, EDIT_TIME_TO, BLOCK_USER = range(5)
