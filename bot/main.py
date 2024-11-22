@@ -6,9 +6,9 @@ from bot.databases.db_team import init_db_team, create_team
 from bot.databases.db_statistic import init_db_statistic, create_statistic, add_time_to_alltime
 from bot.databases.db_sleep_time import init_db_sleep_time, create_sleep_time, edit_sleep_time_to, edit_sleep_time_from
 from bot.databases.db_black_list import init_db_black_list, create_block
-
+from edit_command import get_edit_handler
 # Этапы диалога
-START, CHOICE, CHOICE_EDIT_DATA, EDIT_NAME, EDIT_TIME_FROM, EDIT_TIME_TO, BLOCK_USER, MEETING_OPTION, SET_TIME = range(9)
+START, CHOICE, MEETING_OPTION, SET_TIME = range(4)
 
 # Команда /start
 # Начало диалога
@@ -29,7 +29,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         create_sleep_time(user_id)
         await update.message.reply_text(f"Отлично, теперь Вы зарегистрированы с ID {user_id}.")
 
-    reply_keyboard = [["Изменить данные пользователя", "Добавить встречу", "Статистика"]]
+    reply_keyboard = [["/edit", "Добавить встречу", "Статистика"]]
 
     await update.message.reply_text(
         "Что вы хотите сделать?",
@@ -39,16 +39,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 # Выбор действия
 async def choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if update.message.text == "Изменить данные пользователя":
-        reply_keyboard = [["Сменить имя", "Изменить Гугл Календарь", "Изменить время сна", "Добавить пользователя в черный список"]]
-        user = update.message.from_user
-        await update.message.reply_text(
-            f"Вы выбрали изменить данные. Ваши данные:\n Имя пользователя {user.full_name}\n ТГ id {user.username}\n Время сна\n Гугл календарь \nКакие данные вы хотите изменить?",
-            reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True),
-        )
-        return CHOICE_EDIT_DATA
-
-    elif update.message.text == "Добавить встречу":
+    if update.message.text == "Добавить встречу":
         #ВЫБОР НАЗВАНИЯ, ПОЛЬЗОВАТЕЛЕЙ
         reply_keyboard = [["Автоустановка времени", "Ввести время вручную"]]
         await update.message.reply_text(
@@ -62,77 +53,6 @@ async def choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     else:
         await update.message.reply_text("Пожалуйста, выберите из предложенных вариантов.")
         return CHOICE
-
-# Замена данных в профиле вспомогательные функция замены имени
-async def edit_user_name_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text("Пожалуйста, отправьте новое имя:")
-    return EDIT_NAME
-
-
-async def handle_new_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    new_name = update.message.text
-    user_id = update.effective_user.id
-
-    edit_user_name(user_id, new_name)
-
-    await update.message.reply_text(f"Имя успешно изменено на {new_name}!")
-    return ConversationHandler.END
-
-# Замена данных в профиле вспомогательные функция замены времени сна
-async def edit_sleep_time_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text("Пожалуйста, отправьте новое время начала сна в формате ЧЧ:ММ (например, 22:30):")
-    return EDIT_TIME_FROM
-
-async def edit_sleep_time_prompt2(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    new_time_from = update.message.text
-    user_id = update.effective_user.id
-
-    edit_sleep_time_from(user_id, int(new_time_from))
-
-    await update.message.reply_text("Пожалуйста, отправьте новое время окончания сна в формате ЧЧ:ММ (например, 9:30):")
-    return EDIT_TIME_TO
-
-async def handle_sleep_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    new_time_to = update.message.text
-    user_id = update.effective_user.id
-
-    edit_sleep_time_to(user_id, int(new_time_to))
-
-    await update.message.reply_text(f"Время сна успешно изменено.")
-    return ConversationHandler.END
-
-# Замена данных в профиле вспомогательные функция замены имени
-async def add_user_to_black_list_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text("Отправьте ник пользователя(@user) в формате user, без @")
-    return BLOCK_USER
-
-
-async def handle_block(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    blocked_user = update.message.text
-    user_id = update.effective_user.id
-
-    create_block(user_id, blocked_user)
-
-    await update.message.reply_text(f"Вы успешно заблокировали пользователя {blocked_user}!")
-    return ConversationHandler.END
-
-# Замена данных в профиле основная функция
-async def choice_edit_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if update.message.text == "Сменить имя":
-        return await edit_user_name_prompt(update, context)
-
-    elif update.message.text == "Изменить Гугл Календарь":
-        pass
-
-    elif update.message.text == "Изменить время сна":
-        return await edit_sleep_time_prompt(update, context)
-
-    elif update.message.text == "Добавить пользователя в черный список":
-        return await add_user_to_black_list_prompt(update, context)
-
-    else:
-        await update.message.reply_text("Пожалуйста, выберите из предложенных вариантов.")
-        return CHOICE_EDIT_DATA
 
 # Выбор метода добавления встречи
 async def meeting_option(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -172,17 +92,13 @@ if __name__ == "__main__":
     app = ApplicationBuilder().token("7594370282:AAGpyh78Cr9TXqWyxYlBBJDv_BN34V2e5Jw").build()
 
     app.add_handler(CommandHandler("help", help))
+    app.add_handler(get_edit_handler())
 
     # Обработчик диалога
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
             CHOICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, choice)],
-            CHOICE_EDIT_DATA: [MessageHandler(filters.TEXT & ~filters.COMMAND, choice_edit_data)],
-            EDIT_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_new_name)],
-            EDIT_TIME_FROM: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_sleep_time_prompt2)],
-            EDIT_TIME_TO: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_sleep_time)],
-            BLOCK_USER: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_block)],
             MEETING_OPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, meeting_option)],
             SET_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_time)],
         },
