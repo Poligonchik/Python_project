@@ -52,3 +52,4 @@ def edit_sleep_time_to(user_id: int, time_to: int):
 
     conn.commit()
     conn.close()
+
