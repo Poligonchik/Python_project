@@ -1,7 +1,10 @@
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, CommandHandler, filters
+
+from datetime import datetime
+
 from bot.databases_methods.db_user import edit_user_name, get_user_by_link
-from bot.databases_methods.db_sleep_time import edit_sleep_time_to, edit_sleep_time_from
+from bot.databases_methods.db_sleep_time import edit_sleep_time_to, edit_sleep_time_from, get_sleep_time
 from bot.databases_methods.db_black_list import create_block
 
 # Этапы диалога
@@ -15,17 +18,20 @@ async def edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user = update.message.from_user
     curr_user = get_user_by_link(user.username)
 
+    row = get_sleep_time(curr_user[0])
+    t_from = datetime.strptime(row[1], '%Y-%m-%d %H:%M:%S')  # Конвертация строки в дату и время
+    t_to = datetime.strptime(row[2], '%Y-%m-%d %H:%M:%S')
+
     await update.message.reply_text(
         f'''Ваши данные:
     1. Имя пользователя {curr_user[1]}
     2. ТГ id @{user.username}
-    3. Время сна -
+    3. Время сна {t_from.strftime('%H:%M')} - {t_to.strftime('%H:%M')}
     4. Гугл календарь -
 Выберите данные, которые хотите изменить:''',
         reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True),
     )
     return CHOICE_EDIT_DATA
-
 # Замена имени
 async def edit_user_name_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("Пожалуйста, отправьте новое имя:")
@@ -41,23 +47,61 @@ async def handle_new_name(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 # Изменение времени сна
 async def edit_sleep_time_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text("Пожалуйста, отправьте новое время начала сна в формате ЧЧ:ММ (например, 22:30):")
+    await update.message.reply_text(
+        "Пожалуйста, отправьте новое время начала сна в формате ЧЧ:ММ (например, 22:30):"
+    )
     return EDIT_TIME_FROM
 
-async def edit_sleep_time_prompt2(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    new_time_from = update.message.text
-    user_id = update.effective_user.id
 
-    edit_sleep_time_from(user_id, int(new_time_from))
-    await update.message.reply_text("Пожалуйста, отправьте новое время окончания сна в формате ЧЧ:ММ (например, 9:30):")
+async def edit_sleep_time_prompt2(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    new_time_from = update.message.text.strip()
+
+    user = update.message.from_user
+    user_id = get_user_by_link(user.username)[0]
+
+    try:
+        # Парсим время в формате ЧЧ:ММ и фиксируем дату для time_from
+        time_from = datetime.strptime(new_time_from, "%H:%M")
+        time_from = time_from.replace(year=1999, month=1, day=1)
+    except ValueError:
+        await update.message.reply_text(
+            "Некорректный формат времени. Убедитесь, что время указано в формате ЧЧ:ММ (например, 22:30)."
+        )
+        return EDIT_TIME_FROM
+
+    # Сохраняем в базу данных
+    edit_sleep_time_from(user_id, time_from)
+    await update.message.reply_text(
+        "Пожалуйста, отправьте новое время окончания сна в формате ЧЧ:ММ (например, 09:30):"
+    )
     return EDIT_TIME_TO
 
 async def handle_sleep_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    new_time_to = update.message.text
-    user_id = update.effective_user.id
+    new_time_to = update.message.text.strip()
 
-    edit_sleep_time_to(user_id, int(new_time_to))
-    await update.message.reply_text(f"Время сна успешно изменено.")
+    user = update.message.from_user
+    user_id = get_user_by_link(user.username)[0]
+
+    try:
+        time_to = datetime.strptime(new_time_to, "%H:%M")
+        time_to = time_to.replace(year=1999, month=1, day=1)
+    except ValueError:
+        await update.message.reply_text(
+            "Некорректный формат времени. Убедитесь, что время указано в формате ЧЧ:ММ (например, 09:30)."
+        )
+        return EDIT_TIME_TO
+
+    row = get_sleep_time(user_id)
+    t_from = datetime.strptime(row[1], '%H:%M:%S')  # Конвертация строки в дату
+    t_to = datetime.strptime(row[2], '%H:%M:%S')  # Конвертация строки в дату/время
+    if t_from > t_to:
+        time_to = time_to.replace(year=1999, month=1, day=2)
+
+    edit_sleep_time_to(user_id, time_to)
+
+    await update.message.reply_text(
+        f"Время сна успешно изменено: с {t_from.strftime('%H:%M')} до {t_to.strftime('%H:%M')}."
+    )
     return ConversationHandler.END
 
 # Добавление в черный список

@@ -10,8 +10,8 @@ def init_db_meet():
             Name TEXT,
             Description TEXT,
             Data INTEGER,
-            TimeFrom INTEGER,
-            TimeTo INTEGER,
+            TimeFrom DATETIME,
+            TimeTo DATETIME,
             TeamID INTEGER
         )
     """)
