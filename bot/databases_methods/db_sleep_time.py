@@ -20,7 +20,7 @@ def create_sleep_time(user_id: int):
     conn = sqlite3.connect("sleep_time.db")
     cursor = conn.cursor()
     cursor.execute("""
-            INSERT INTO statistic (UserId) VALUES (?)
+            INSERT INTO sleep_time (UserId) VALUES (?)
         """, (user_id,))
     conn.commit()
     conn.close()
