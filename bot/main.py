@@ -10,7 +10,7 @@ from bot.databases_methods.db_statistic import init_db_statistic, create_statist
 from bot.databases_methods.db_sleep_time import init_db_sleep_time, create_sleep_time, edit_sleep_time_to, edit_sleep_time_from
 from bot.databases_methods.db_black_list import init_db_black_list, create_block
 
-from edit_command import get_edit_handler
+from bot.edit_command import get_edit_handler
 
 # Этапы диалога
 START, CHOICE, MEETING_OPTION, SET_TIME = range(4)
