@@ -1,4 +1,7 @@
 import sqlite3
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Инициализация базы данных пользователей
 def init_db_user():
@@ -61,17 +64,19 @@ def edit_user_calendar_id(user_id: int, calendar_id: str):
     """, (calendar_id, user_id))
     conn.commit()
     conn.close()
+    logger.info(f"GoogleCalendarLink обновлён для пользователя {user_id}: {calendar_id}")
 
 # Получение GoogleCalendarLink по UserId
 def get_user_calendar_id(user_id: int):
     conn = sqlite3.connect("users.db")
     cursor = conn.cursor()
-    cursor.execute("""
-        SELECT GoogleCalendarLink FROM users WHERE UserId = ?
-    """, (user_id,))
+    cursor.execute("SELECT GoogleCalendarLink FROM users WHERE UserId = ?", (user_id,))
     result = cursor.fetchone()
     conn.close()
+    logger.info(f"Извлечён GoogleCalendarLink для пользователя {user_id}: {result[0] if result else None}")
     return result[0] if result else None
+
+
 
 # Экспортируем функции
 __all__ = [
