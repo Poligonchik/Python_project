@@ -1,6 +1,6 @@
 import sqlite3
 
-# Создание и инициализация базы данных
+# Инициализация базы данных пользователей
 def init_db_user():
     conn = sqlite3.connect("users.db")
     cursor = conn.cursor()
@@ -15,19 +15,19 @@ def init_db_user():
     conn.commit()
     conn.close()
 
-# Функция для добавления пользователя
+# Добавление нового пользователя
 def add_user(name: str, telegram_link: str, google_calendar_link: str) -> int:
     conn = sqlite3.connect("users.db")
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO users (Name, TelegramLink, GoogleCalendarLink) VALUES (?, ?, ?)
     """, (name, telegram_link, google_calendar_link))
-    user_id = cursor.lastrowid
+    user_id = cursor.lastrowid  # Получаем ID только что добавленного пользователя
     conn.commit()
     conn.close()
     return user_id
 
-# Проверка, есть ли пользователь в базе
+# Получение пользователя по TelegramLink
 def get_user_by_link(telegram_link: str):
     conn = sqlite3.connect("users.db")
     cursor = conn.cursor()
@@ -38,39 +38,47 @@ def get_user_by_link(telegram_link: str):
     conn.close()
     return user
 
-# Функция для смены имени
+# Изменение имени пользователя
 def edit_user_name(tg_link: str, new_name: str):
     conn = sqlite3.connect("users.db")
     cursor = conn.cursor()
-
     cursor.execute("""
-            UPDATE users
-            SET Name = ?
-            WHERE TelegramLink = ?
-        """, (new_name, tg_link))
-
+        UPDATE users
+        SET Name = ?
+        WHERE TelegramLink = ?
+    """, (new_name, tg_link))
     conn.commit()
     conn.close()
 
-def get_user_calendar_id(user_id):
-    conn = sqlite3.connect('bot/database.db')
-    cursor = conn.cursor()
-    cursor.execute("SELECT calendar_id FROM users WHERE id = ?", (user_id,))
-    result = cursor.fetchone()
-    conn.close()
-    return result[0] if result else None
-
-# Функция для обновления calendar_id пользователя
+# Обновление GoogleCalendarLink пользователя
 def edit_user_calendar_id(user_id: int, calendar_id: str):
     conn = sqlite3.connect("users.db")
     cursor = conn.cursor()
-
     cursor.execute("""
         UPDATE users
         SET GoogleCalendarLink = ?
         WHERE UserId = ?
     """, (calendar_id, user_id))
-
     conn.commit()
     conn.close()
 
+# Получение GoogleCalendarLink по UserId
+def get_user_calendar_id(user_id: int):
+    conn = sqlite3.connect("users.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT GoogleCalendarLink FROM users WHERE UserId = ?
+    """, (user_id,))
+    result = cursor.fetchone()
+    conn.close()
+    return result[0] if result else None
+
+# Экспортируем функции
+__all__ = [
+    "init_db_user",
+    "add_user",
+    "get_user_by_link",
+    "edit_user_name",
+    "edit_user_calendar_id",
+    "get_user_calendar_id",
+]
