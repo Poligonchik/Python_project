@@ -1,1 +1,12 @@
+# Ignore Google OAuth tokens
+bot/token_*.pickle
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+
+# Ignore credentials
 bot/calendari.json
+
+# Ignore environment variables file (если используете)
+.env

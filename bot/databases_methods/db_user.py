@@ -51,3 +51,26 @@ def edit_user_name(tg_link: str, new_name: str):
 
     conn.commit()
     conn.close()
+
+def get_user_calendar_id(user_id):
+    conn = sqlite3.connect('bot/database.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT calendar_id FROM users WHERE id = ?", (user_id,))
+    result = cursor.fetchone()
+    conn.close()
+    return result[0] if result else None
+
+# Функция для обновления calendar_id пользователя
+def edit_user_calendar_id(user_id: int, calendar_id: str):
+    conn = sqlite3.connect("users.db")
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE users
+        SET GoogleCalendarLink = ?
+        WHERE UserId = ?
+    """, (calendar_id, user_id))
+
+    conn.commit()
+    conn.close()
+
