@@ -86,7 +86,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if curr_user:
         calendar_id = curr_user[3]  # Поле GoogleCalendarLink
         if calendar_id:
-            await update.message.reply_text(f"Привет, {curr_user[1]}! Ваш календарь уже привязан.")
+            await update.message.reply_text(
+                f"Привет, {curr_user[1]}! Ваш календарь уже привязан.",
+                reply_markup=ReplyKeyboardMarkup(
+                    [["Добавить встречу", "Статистика"]],
+                    resize_keyboard=True,
+                    one_time_keyboard=True,
+                )
+            )
         else:
             await update.message.reply_text(
                 "Вы зарегистрированы, но не привязали календарь. Пришлите ссылку на ваш Google Календарь."

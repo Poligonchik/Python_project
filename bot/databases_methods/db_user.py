@@ -78,7 +78,7 @@ def get_user_calendar_id(user_id: int):
 
 
 
-# Экспортируем функции
+# без этого не работало
 __all__ = [
     "init_db_user",
     "add_user",
