@@ -10,3 +10,5 @@ bot/calendari.json
 
 # Ignore environment variables file (если используете)
 .env
+
+*.db

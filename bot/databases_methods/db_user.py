@@ -76,6 +76,23 @@ def get_user_calendar_id(user_id: int):
     logger.info(f"Извлечён GoogleCalendarLink для пользователя {user_id}: {result[0] if result else None}")
     return result[0] if result else None
 
+def get_user_id_by_telegram_id(telegram_link: str) -> int:
+    conn = sqlite3.connect("users.db")
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT UserId FROM users WHERE TelegramLink = ?
+        """, (telegram_link,))
+        result = cursor.fetchone()
+        if result:
+            return result[0]  # Возвращаем UserId
+        return None
+    except Exception as e:
+        logger.error(f"Ошибка при получении UserId: {e}")
+        return None
+    finally:
+        conn.close()
+
 
 
 # без этого не работало

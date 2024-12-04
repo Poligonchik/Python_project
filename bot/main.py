@@ -21,6 +21,7 @@ SCOPES = ['https://www.googleapis.com/auth/calendar']
 
 # Этапы диалога
 START, CHOICE, MEETING_OPTION, SET_TIME, AUTH = range(5)
+SET_EVENT_TITLE, SET_EVENT_DESCRIPTION, SET_EVENT_START, SET_EVENT_END = range(5, 9)
 
 # Функции для работы с базой данных (предполагается, что они уже реализованы)
 from bot.databases_methods.db_user import (
@@ -28,8 +29,10 @@ from bot.databases_methods.db_user import (
     add_user,
     get_user_by_link,
     edit_user_name,
-    get_user_calendar_id
+    get_user_calendar_id,
+    get_user_id_by_telegram_id
 )
+
 from bot.databases_methods.db_user import edit_user_calendar_id
 from bot.databases_methods.db_meet import init_db_meet, create_meet
 from bot.databases_methods.db_team import init_db_team, create_team
@@ -77,6 +80,7 @@ def save_credentials(user_id, creds):
     with open(creds_path, 'wb') as token:
         pickle.dump(creds, token)
 
+
 # Команда /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user = update.message.from_user
@@ -109,18 +113,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return CHOICE
 
 # Выбор действия
+# Выбор действия
 async def choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     text = update.message.text
     logger.info(f"Выбранный текст: {text}")
     if text.startswith("https://"):
         return await handle_calendar_url(update, context)
     elif text == "Добавить встречу":
-        reply_keyboard = [["Автоустановка времени", "Ввести время вручную"]]
-        await update.message.reply_text(
-            "Как вы хотите установить время встречи?",
-            reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True),
-        )
-        return MEETING_OPTION
+        # Переход в создание встречи
+        return await create_meeting(update, context)
     elif text == "Статистика":
         await update.message.reply_text("Функционал статистики пока не реализован.")
         return ConversationHandler.END
@@ -128,19 +129,38 @@ async def choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await update.message.reply_text("Выберите действие или отправьте ссылку на календарь.")
         return CHOICE
 
+
 # Обработка ссылки на календарь
 async def handle_calendar_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Обрабатывает ссылку на Google Календарь и привязывает её к пользователю.
+    """
+    telegram_username = update.message.from_user.username  # Берём username из Telegram
+    logger.info(f"Telegram username: {telegram_username}")
+    if not telegram_username:
+        await update.message.reply_text(
+            "Ваш Telegram аккаунт не имеет username. Пожалуйста, задайте username в настройках Telegram."
+        )
+        return CHOICE
+
+    # Получаем UserId из базы данных
+    user_id = get_user_id_by_telegram_id(telegram_username)
+    logger.info(f"UserId из базы: {user_id}")
+    if not user_id:
+        await update.message.reply_text("Пользователь не найден в базе данных.")
+        return CHOICE
+
+    # Извлечение Calendar ID из ссылки
     url = update.message.text.strip()
     calendar_id = extract_calendar_id(url)
     if not calendar_id:
         await update.message.reply_text(
             "Не удалось распознать Calendar ID. Пожалуйста, отправьте корректную ссылку на Google Календарь."
         )
-        return CHOICE  # Возвращаемся к выбору действия
+        return CHOICE
 
-    user_id = update.message.from_user.id
+    # Получение токена пользователя
     creds = get_credentials(user_id)
-
     if not creds or not creds.valid:
         # Если токен недействителен, запрашиваем авторизацию
         flow = InstalledAppFlow.from_client_secrets_file('bot/calendari.json', SCOPES)
@@ -158,30 +178,9 @@ async def handle_calendar_url(update: Update, context: ContextTypes.DEFAULT_TYPE
         return AUTH  # Переход в состояние ожидания кода авторизации
 
     # Сохраняем Calendar ID в базе данных
-    logger.info(f"Пытаемся сохранить Calendar ID: {calendar_id} для пользователя {user_id}")
     edit_user_calendar_id(user_id, calendar_id)
-    saved_calendar_id = get_user_calendar_id(user_id)
-    logger.info(f"Проверяем сохранение Calendar ID: {saved_calendar_id}")
-
-    # Проверяем, сохранился ли Calendar ID
-    saved_calendar_id = get_user_calendar_id(user_id)
-    if saved_calendar_id == calendar_id:
-        logger.info(f"Calendar ID успешно сохранён для пользователя {user_id}: {saved_calendar_id}")
-        await update.message.reply_text(
-            "Ваш календарь успешно привязан! Выберите дальнейшее действие:",
-            reply_markup=ReplyKeyboardMarkup(
-                [["Добавить встречу", "Статистика"]],
-                resize_keyboard=True,
-                one_time_keyboard=True
-            ),
-        )
-    else:
-        logger.error(f"Ошибка: Calendar ID не сохранился для пользователя {user_id}.")
-        await update.message.reply_text(
-            "Ошибка при сохранении календаря. Попробуйте отправить ссылку ещё раз."
-        )
-
-    return CHOICE  # Возвращаемся к состоянию выбора действия
+    await update.message.reply_text("Ваш календарь успешно привязан!")
+    return CHOICE
 
 
 
@@ -189,7 +188,14 @@ async def handle_calendar_url(update: Update, context: ContextTypes.DEFAULT_TYPE
 # Обработка кода OAuth
 async def handle_oauth_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     code = update.message.text.strip()
-    user_id = update.message.from_user.id
+    telegram_username = update.message.from_user.username
+    user_id = get_user_id_by_telegram_id(telegram_username)  # Получаем UserId из базы
+
+    if not user_id:
+        await update.message.reply_text("Пользователь не найден в базе данных.")
+        logger.error(f"UserId равен None для пользователя с Telegram username: {telegram_username}")
+        return CHOICE
+
     flow = context.user_data.get('flow')
     calendar_id = context.user_data.get('calendar_id')
 
@@ -197,43 +203,23 @@ async def handle_oauth_code(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         await update.message.reply_text(
             "Не удалось найти активный OAuth процесс. Попробуйте снова отправить ссылку на календарь."
         )
-        return CHOICE  # Возвращаем пользователя к выбору действия
+        return CHOICE
 
     try:
-        # Получаем токен с помощью кода
         flow.fetch_token(code=code)
         creds = flow.credentials
-        save_credentials(user_id, creds)
+        logger.info(f"Сохраняем токен для UserId: {user_id}")
+        save_credentials(user_id, creds)  # Сохраняем токен под UserId
 
-        # Сохраняем Calendar ID в базе данных
         edit_user_calendar_id(user_id, calendar_id)
-
-        # Проверяем, сохранился ли Calendar ID
-        saved_calendar_id = get_user_calendar_id(user_id)
-        if saved_calendar_id == calendar_id:
-            logger.info(f"Calendar ID успешно сохранён для пользователя {user_id}: {calendar_id}")
-            await update.message.reply_text(
-                "Авторизация прошла успешно! Ваш календарь привязан. Выберите дальнейшее действие:",
-                reply_markup=ReplyKeyboardMarkup(
-                    [["Добавить встречу", "Статистика"]],
-                    resize_keyboard=True,
-                    one_time_keyboard=True,
-                ),
-            )
-            return CHOICE  # Возвращаем пользователя к выбору действия
-        else:
-            logger.error(f"Ошибка сохранения Calendar ID для пользователя {user_id}.")
-            await update.message.reply_text(
-                "Ошибка при сохранении календаря. Попробуйте отправить ссылку ещё раз."
-            )
-            return CHOICE  # Возвращаем пользователя к выбору действия
-
+        await update.message.reply_text("Авторизация прошла успешно!")
+        return CHOICE
     except Exception as e:
         logger.error(f"Ошибка при авторизации: {e}")
-        await update.message.reply_text(
-            f"Ошибка при авторизации. Убедитесь, что код введён корректно. {e}"
-        )
-        return CHOICE  # Возвращаем пользователя к выбору действия
+        await update.message.reply_text("Ошибка при авторизации. Попробуйте снова.")
+        return CHOICE
+
+
 
 
 # Функция для создания события
@@ -249,29 +235,100 @@ def create_event(creds, calendar_id, summary="Тестовая встреча", 
 
 
 # Команда для создания встречи
+# Команда для создания встречи
 async def create_meeting(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.from_user.id
+    telegram_username = update.message.from_user.username
+    user_id = get_user_id_by_telegram_id(telegram_username)  # Получаем UserId из базы
     creds = get_credentials(user_id)
-    calendar_id = get_user_calendar_id(user_id)  # Реализуйте эту функцию в db_user.py
+    calendar_id = get_user_calendar_id(user_id)
 
     if not creds or not creds.valid:
-        await update.message.reply_text("Сначала авторизуйте доступ к вашему Google Календарю, отправив ссылку на календарь.")
-        return
+        await update.message.reply_text("Сначала авторизуйте доступ к вашему Google Календарю.")
+        return CHOICE
 
     if not calendar_id:
         await update.message.reply_text("Не найден Calendar ID. Пожалуйста, отправьте ссылку на ваш Google Календарь.")
-        return
+        return CHOICE
+
+    # Запрашиваем название события
+    await update.message.reply_text("Введите название встречи:")
+    context.user_data['calendar_id'] = calendar_id
+    return SET_EVENT_TITLE  # Переход к этапу ввода названия
+
+
+
+# Новый этап: Установка названия события
+async def set_event_title(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    title = update.message.text.strip()
+    context.user_data['event_title'] = title  # Сохраняем название события
+    await update.message.reply_text("Введите описание встречи (или оставьте пустым):")
+    return SET_EVENT_DESCRIPTION
+
+
+# Новый этап: Установка описания события
+async def set_event_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    description = update.message.text.strip()
+    context.user_data['event_description'] = description  # Сохраняем описание события
+    await update.message.reply_text("Введите дату и время начала встречи в формате ГГГГ-ММ-ДД ЧЧ:ММ (например, 2024-12-10 14:30):")
+    return SET_EVENT_START
+
+
+# Новый этап: Установка времени начала встречи
+async def set_event_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    start_time_str = update.message.text.strip()
+    try:
+        start_time = datetime.strptime(start_time_str, "%Y-%m-%d %H:%M")
+        context.user_data['event_start_time'] = start_time
+        await update.message.reply_text("Введите дату и время окончания встречи в формате ГГГГ-ММ-ДД ЧЧ:ММ (например, 2024-12-10 15:30):")
+        return SET_EVENT_END
+    except ValueError:
+        await update.message.reply_text("Некорректный формат времени. Попробуйте ещё раз.")
+        return SET_EVENT_START
+
+
+# Новый этап: Установка времени окончания встречи
+async def set_event_end(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    end_time_str = update.message.text.strip()
+    telegram_username = update.message.from_user.username
+    user_id = get_user_id_by_telegram_id(telegram_username)
 
     try:
-        event = create_event(creds, calendar_id)
+        end_time = datetime.strptime(end_time_str, "%Y-%m-%d %H:%M")
+        start_time = context.user_data['event_start_time']
+        if end_time <= start_time:
+            await update.message.reply_text("Время окончания должно быть позже времени начала. Попробуйте ещё раз.")
+            return SET_EVENT_END
+
+        # Создание события
+        creds = get_credentials(user_id)
+        calendar_id = context.user_data['calendar_id']
+        title = context.user_data['event_title']
+        description = context.user_data['event_description']
+
+        event = create_event(
+            creds,
+            calendar_id,
+            summary=title,
+            description=description,
+            start_time=start_time.isoformat(),
+            end_time=end_time.isoformat(),
+        )
         await update.message.reply_text(f"Событие успешно создано: {event.get('htmlLink')}")
+        return ConversationHandler.END
+    except ValueError:
+        await update.message.reply_text("Некорректный формат времени. Попробуйте ещё раз.")
+        return SET_EVENT_END
     except Exception as e:
+        logger.error(f"Ошибка при создании события: {e}")
         await update.message.reply_text(f"Ошибка при создании события: {e}")
+        return ConversationHandler.END
 
 # Выбор метода добавления встречи
 async def meeting_option(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     text = update.message.text.strip()
-    user_id = update.message.from_user.id
+    telegram_username = update.message.from_user.username  # Получаем username пользователя
+    user_id = get_user_id_by_telegram_id(telegram_username)  # Получаем UserId из базы
+
     creds = get_credentials(user_id)
     calendar_id = get_user_calendar_id(user_id)
 
@@ -307,7 +364,8 @@ async def meeting_option(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 # Установка времени вручную
 async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_time = update.message.text.strip()
-    user_id = update.message.from_user.id
+    telegram_username = update.message.from_user.username
+    user_id = get_user_id_by_telegram_id(telegram_username)
     creds = get_credentials(user_id)
     calendar_id = get_user_calendar_id(user_id)
 
@@ -357,6 +415,10 @@ if __name__ == "__main__":
             CHOICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, choice)],
             MEETING_OPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, meeting_option)],
             SET_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_time)],
+            SET_EVENT_TITLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_event_title)],
+            SET_EVENT_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_event_description)],
+            SET_EVENT_START: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_event_start)],
+            SET_EVENT_END: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_event_end)],
             AUTH: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_oauth_code)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
