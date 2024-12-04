@@ -20,8 +20,8 @@ import pickle
 SCOPES = ['https://www.googleapis.com/auth/calendar']
 
 # Этапы диалога
-START, CHOICE, MEETING_OPTION, SET_TIME, AUTH = range(5)
-SET_EVENT_TITLE, SET_EVENT_DESCRIPTION, SET_EVENT_START, SET_EVENT_END = range(5, 9)
+(START, CHOICE, MEETING_OPTION, SET_EVENT_TITLE, SET_EVENT_DESCRIPTION,
+ SET_EVENT_PARTICIPANTS, SET_EVENT_START, SET_EVENT_END, AUTH) = range(9)
 
 # Функции для работы с базой данных (предполагается, что они уже реализованы)
 from bot.databases_methods.db_user import (
@@ -223,7 +223,8 @@ async def handle_oauth_code(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 # Функция для создания события
-def create_event(creds, calendar_id, summary="Тестовая встреча", description="Описание", start_time=None, end_time=None):
+# Функция для создания события
+def create_event(creds, calendar_id, summary, description, start_time, end_time, attendees_emails=None):
     service = build('calendar', 'v3', credentials=creds)
     event = {
         'summary': summary,
@@ -231,7 +232,10 @@ def create_event(creds, calendar_id, summary="Тестовая встреча", 
         'start': {'dateTime': start_time, 'timeZone': 'Europe/Moscow'},
         'end': {'dateTime': end_time, 'timeZone': 'Europe/Moscow'},
     }
+    if attendees_emails:
+        event['attendees'] = [{'email': email} for email in attendees_emails]
     return service.events().insert(calendarId=calendar_id, body=event).execute()
+
 
 
 # Команда для создания встречи
@@ -250,12 +254,26 @@ async def create_meeting(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Не найден Calendar ID. Пожалуйста, отправьте ссылку на ваш Google Календарь.")
         return CHOICE
 
-    # Запрашиваем название события
-    await update.message.reply_text("Введите название встречи:")
+    # Сохраняем UserId инициатора и Calendar ID в user_data
+    context.user_data['user_id'] = user_id
     context.user_data['calendar_id'] = calendar_id
-    return SET_EVENT_TITLE  # Переход к этапу ввода названия
+
+    await update.message.reply_text("Введите название встречи:")
+    return SET_EVENT_TITLE
 
 
+async def set_event_participants(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    participants = update.message.text.strip().split(",")  # Разделяем email через запятую
+    participants = [email.strip() for email in participants if email.strip()]  # Убираем лишние пробелы и пустые строки
+    context.user_data['participants'] = participants  # Сохраняем список email
+
+    if not participants:
+        await update.message.reply_text(
+            "Вы не ввели ни одного участника. Если хотите добавить участников, введите их email через запятую. Если нет, просто отправьте пустое сообщение.")
+
+    await update.message.reply_text(
+        "Введите дату и время начала встречи в формате ГГГГ-ММ-ДД ЧЧ:ММ (например, 2024-12-10 14:30):")
+    return SET_EVENT_START
 
 # Новый этап: Установка названия события
 async def set_event_title(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -266,11 +284,11 @@ async def set_event_title(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # Новый этап: Установка описания события
-async def set_event_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def set_event_description(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     description = update.message.text.strip()
     context.user_data['event_description'] = description  # Сохраняем описание события
-    await update.message.reply_text("Введите дату и время начала встречи в формате ГГГГ-ММ-ДД ЧЧ:ММ (например, 2024-12-10 14:30):")
-    return SET_EVENT_START
+    await update.message.reply_text("Введите email участников встречи через запятую (например, email1@example.com, email2@example.com):")
+    return SET_EVENT_PARTICIPANTS
 
 
 # Новый этап: Установка времени начала встречи
@@ -286,8 +304,7 @@ async def set_event_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return SET_EVENT_START
 
 
-# Новый этап: Установка времени окончания встречи
-async def set_event_end(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def set_event_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     end_time_str = update.message.text.strip()
     telegram_username = update.message.from_user.username
     user_id = get_user_id_by_telegram_id(telegram_username)
@@ -299,12 +316,13 @@ async def set_event_end(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Время окончания должно быть позже времени начала. Попробуйте ещё раз.")
             return SET_EVENT_END
 
-        # Создание события
         creds = get_credentials(user_id)
         calendar_id = context.user_data['calendar_id']
         title = context.user_data['event_title']
         description = context.user_data['event_description']
+        participants = context.user_data.get('participants', [])
 
+        # Создаём событие с участниками
         event = create_event(
             creds,
             calendar_id,
@@ -312,6 +330,7 @@ async def set_event_end(update: Update, context: ContextTypes.DEFAULT_TYPE):
             description=description,
             start_time=start_time.isoformat(),
             end_time=end_time.isoformat(),
+            attendees_emails=participants if participants else None
         )
         await update.message.reply_text(f"Событие успешно создано: {event.get('htmlLink')}")
         return ConversationHandler.END
@@ -322,6 +341,7 @@ async def set_event_end(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Ошибка при создании события: {e}")
         await update.message.reply_text(f"Ошибка при создании события: {e}")
         return ConversationHandler.END
+
 
 # Выбор метода добавления встречи
 async def meeting_option(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -414,9 +434,9 @@ if __name__ == "__main__":
         states={
             CHOICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, choice)],
             MEETING_OPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, meeting_option)],
-            SET_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_time)],
             SET_EVENT_TITLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_event_title)],
             SET_EVENT_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_event_description)],
+            SET_EVENT_PARTICIPANTS: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_event_participants)],
             SET_EVENT_START: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_event_start)],
             SET_EVENT_END: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_event_end)],
             AUTH: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_oauth_code)],
