@@ -41,6 +41,16 @@ def get_user_by_link(telegram_link: str):
     conn.close()
     return user
 
+def get_link_by_user_id(tg_id: str):
+    conn = sqlite3.connect("users.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT GoogleCalendarLink FROM users WHERE TelegramLink = ?
+    """, (tg_id,))
+    link_g = cursor.fetchone()[0]
+    conn.close()
+    return link_g
+
 # Изменение имени пользователя
 def edit_user_name(tg_link: str, new_name: str):
     conn = sqlite3.connect("users.db")
