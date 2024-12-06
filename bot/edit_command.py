@@ -90,14 +90,14 @@ async def handle_sleep_time(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             "Некорректный формат времени. Убедитесь, что время указано в формате ЧЧ:ММ (например, 09:30)."
         )
         return EDIT_TIME_TO
-
-    row = get_sleep_time(user_id)
-    t_from = datetime.strptime(row[1], '%H:%M:%S')  # Конвертация строки в дату
-    t_to = datetime.strptime(row[2], '%H:%M:%S')  # Конвертация строки в дату/время
-    if t_from > t_to:
-        time_to = time_to.replace(year=1999, month=1, day=2)
-
     edit_sleep_time_to(user_id, time_to)
+    row = get_sleep_time(user_id)
+    t_from = datetime.strptime(row[1], '%Y-%m-%d %H:%M:%S')
+    t_to = datetime.strptime(row[2], '%Y-%m-%d %H:%M:%S')
+    if t_from > t_to:
+        t_to = t_to.replace(year=1999, month=1, day=2)
+
+    edit_sleep_time_to(user_id, t_to)
 
     await update.message.reply_text(
         f"Время сна успешно изменено: с {t_from.strftime('%H:%M')} до {t_to.strftime('%H:%M')}."
