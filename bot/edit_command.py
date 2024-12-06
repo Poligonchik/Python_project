@@ -3,7 +3,7 @@ from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, Comm
 
 from datetime import datetime
 
-from bot.databases_methods.db_user import edit_user_name, get_user_by_link
+from bot.databases_methods.db_user import edit_user_name, get_user_by_link, get_link_by_user_id
 from bot.databases_methods.db_sleep_time import edit_sleep_time_to, edit_sleep_time_from, get_sleep_time
 from bot.databases_methods.db_black_list import create_block
 
@@ -21,13 +21,13 @@ async def edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     row = get_sleep_time(curr_user[0])
     t_from = datetime.strptime(row[1], '%Y-%m-%d %H:%M:%S')  # Конвертация строки в дату и время
     t_to = datetime.strptime(row[2], '%Y-%m-%d %H:%M:%S')
-
+    mail = get_link_by_user_id(user.username)
     await update.message.reply_text(
         f'''Ваши данные:
     1. Имя пользователя {curr_user[1]}
     2. ТГ id @{user.username}
     3. Время сна {t_from.strftime('%H:%M')} - {t_to.strftime('%H:%M')}
-    4. Гугл календарь -
+    4. Почта, к которой привязан календарь: {mail}
 Выберите данные, которые хотите изменить:''',
         reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True),
     )
@@ -90,14 +90,14 @@ async def handle_sleep_time(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             "Некорректный формат времени. Убедитесь, что время указано в формате ЧЧ:ММ (например, 09:30)."
         )
         return EDIT_TIME_TO
-
-    row = get_sleep_time(user_id)
-    t_from = datetime.strptime(row[1], '%H:%M:%S')  # Конвертация строки в дату
-    t_to = datetime.strptime(row[2], '%H:%M:%S')  # Конвертация строки в дату/время
-    if t_from > t_to:
-        time_to = time_to.replace(year=1999, month=1, day=2)
-
     edit_sleep_time_to(user_id, time_to)
+    row = get_sleep_time(user_id)
+    t_from = datetime.strptime(row[1], '%Y-%m-%d %H:%M:%S')
+    t_to = datetime.strptime(row[2], '%Y-%m-%d %H:%M:%S')
+    if t_from > t_to:
+        t_to = t_to.replace(year=1999, month=1, day=2)
+
+    edit_sleep_time_to(user_id, t_to)
 
     await update.message.reply_text(
         f"Время сна успешно изменено: с {t_from.strftime('%H:%M')} до {t_to.strftime('%H:%M')}."

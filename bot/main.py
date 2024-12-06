@@ -1,4 +1,4 @@
-from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -11,7 +11,6 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from google.auth.transport.requests import Request
 from datetime import datetime, timedelta
-
 
 import os
 import pickle
@@ -41,6 +40,7 @@ from bot.databases_methods.db_sleep_time import init_db_sleep_time, create_sleep
 from bot.databases_methods.db_black_list import init_db_black_list, create_block
 
 from bot.edit_command import get_edit_handler
+from bot.help_handler import help_command
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -406,9 +406,10 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("Диалог отменен. До встречи!", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
-# Команда /help
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("Список команд:\n/start - начать\n/help - помощь\n/edit - редактировать\n/статистика - статистика\n/создать_встречу - добавить встречу")
+main_keyboard = ReplyKeyboardMarkup(
+    [[KeyboardButton('/help'), KeyboardButton('/start')]],
+    resize_keyboard=True
+)
 
 # Основная функция
 if __name__ == "__main__":
@@ -425,7 +426,7 @@ if __name__ == "__main__":
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
     # Обработчики команд
-    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(help_command())
     app.add_handler(get_edit_handler())
 
     # Обработчик диалога
