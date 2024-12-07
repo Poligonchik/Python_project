@@ -128,8 +128,9 @@ async def choice_edit_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return await edit_sleep_time_prompt(update, context)
 
     elif update.message.text == "Изменить Гугл Календарь":
-        from bot.main import handle_calendar_url
-        return await handle_calendar_url(update, context)
+        pass
+        #from bot.main import handle_calendar_url
+        #return await handle_calendar_url(update, context)
 
     elif update.message.text == "Добавить пользователя в черный список":
         return await add_user_to_black_list_prompt(update, context)
