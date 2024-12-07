@@ -7,8 +7,14 @@ from urllib.parse import urlparse, parse_qs
 import os
 import pickle
 import logging
+from bot.databases_methods.db_sleep_time import get_sleep_time
+from bot.databases_methods.db_user import get_user_by_email, get_user_calendar_id
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Области доступа
+SCOPES = ['https://www.googleapis.com/auth/calendar']
 
 # Функции для извлечения и сохранения Calendar ID
 def extract_calendar_id(url):
@@ -31,8 +37,12 @@ def get_credentials(user_id):
         with open(token_path, 'rb') as token:
             creds = pickle.load(token)          # Загружаем токен
         if not creds.valid and creds.expired and creds.refresh_token:
-            creds.refresh(Request())              # Если вдруг нет, то обновляем
-            save_credentials(user_id, creds)      # и сохраняем
+            try:
+                creds.refresh(Request())              # Если токен истек, обновляем
+                save_credentials(user_id, creds)      # и сохраняем
+            except Exception as e:
+                logger.error(f"Ошибка обновления токена для пользователя {user_id}: {e}")
+                return None
         return creds
     else:
         logger.warning(f"Токен отсутствует для пользователя {user_id}")
@@ -42,10 +52,34 @@ def get_credentials(user_id):
 def save_credentials(user_id, creds):
     token_path = f"bot/token_{user_id}.pickle"
     with open(token_path, 'wb') as token:
-        pickle.dump(creds, token)   # берет creds и записывает в token
+        pickle.dump(creds, token)   # Берет creds и записывает в token
 
-# Функция для создания события
-def create_event(creds, calendar_id, summary, description, start_time, end_time, attendees_emails=None):
+# Функция для создания события в календаре пользователя
+def create_event(user_email, summary, description, start_time, end_time):
+    user = get_user_by_email(user_email)
+    if not user:
+        logger.warning(f"Пользователь с email {user_email} не найден в базе данных.")
+        return False, f"Пользователь с email {user_email} не найден."
+
+    user_id = user[0]
+    calendar_id = user[3]  # GoogleCalendarLink
+    if not calendar_id:
+        logger.warning(f"У пользователя {user_email} не привязан календарь.")
+        return False, f"У пользователя {user_email} не привязан календарь."
+
+    # Проверка времени сна
+    sleep_time = get_sleep_time(user_id)
+    if sleep_time:
+        sleep_start = datetime.strptime(sleep_time[1], "%Y-%m-%d %H:%M:%S")
+        sleep_end = datetime.strptime(sleep_time[2], "%Y-%m-%d %H:%M:%S")
+        event_start = datetime.fromisoformat(start_time)
+        event_end = datetime.fromisoformat(end_time)
+
+        if (event_start < sleep_end) and (event_end > sleep_start):
+            logger.info(f"Событие перекрывается с временем сна пользователя {user_email}. Пропуск.")
+            return False, f"Событие перекрывается с временем сна пользователя {user_email}."
+
+    creds = get_credentials(user_id)
     service = build('calendar', 'v3', credentials=creds)
     event = {
         'summary': summary,
@@ -53,8 +87,11 @@ def create_event(creds, calendar_id, summary, description, start_time, end_time,
         'start': {'dateTime': start_time, 'timeZone': 'Europe/Moscow'},
         'end': {'dateTime': end_time, 'timeZone': 'Europe/Moscow'},
     }
-    if attendees_emails:
-        event['attendees'] = [{'email': email} for email in attendees_emails]
-    return service.events().insert(calendarId=calendar_id, body=event).execute()
 
-
+    try:
+        created_event = service.events().insert(calendarId=calendar_id, body=event).execute()
+        logger.info(f"Событие успешно добавлено в календарь {user_email}: {created_event.get('htmlLink')}")
+        return True, f"Событие добавлено в календарь {user_email}."
+    except Exception as e:
+        logger.error(f"Ошибка при добавлении события в календарь {user_email}: {e}")
+        return False, f"Ошибка при добавлении события в календарь {user_email}: {e}"

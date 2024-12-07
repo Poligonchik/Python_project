@@ -109,7 +109,16 @@ def get_user_id_by_telegram_id(telegram_link: str) -> int:
     finally:
         conn.close()
 
-
+# Получение пользователя по GoogleCalendarLink
+def get_user_by_email(email: str):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT * FROM users WHERE GoogleCalendarLink = ?
+    """, (email,))
+    user = cursor.fetchone()
+    conn.close()
+    return user
 
 # без этого не работало
 __all__ = [
