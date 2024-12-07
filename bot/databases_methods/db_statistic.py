@@ -48,3 +48,13 @@ def add_time_to_alltime(user_id: int, additional_time: int):
 
     conn.commit()
     conn.close()
+
+def user_id_exist(user_id: int) -> bool:
+    with sqlite3.connect(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1 FROM statistic WHERE UserId = ?", (user_id,))
+
+        # Если пользователь не найден
+        if cursor.fetchone() is None:
+            return False
+        return True

@@ -28,6 +28,8 @@ from bot.google_calendar.google_calendar import extract_calendar_id, get_credent
 from bot.google_calendar.handlers_calendar import handle_calendar_url, handle_oauth_code
 from bot.meeting_plan import create_meeting, get_meeting_handler, start_meeting
 
+from bot.send_statistic import get_statistic
+
 import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -73,7 +75,7 @@ async def choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await update.message.reply_text("Для подтверждения нажмите --> /create_meeting")
         return ConversationHandler.END
     elif text == "Статистика":
-        await update.message.reply_text("Функционал статистики пока не реализован.")
+        await get_statistic(update, context)
         return ConversationHandler.END
     else:
         return await handle_calendar_url(update, context)

@@ -2,6 +2,7 @@ from telegram import Update
 from datetime import datetime, timedelta
 from bot.google_calendar.google_calendar import create_event
 from bot.databases_methods.db_user import get_user_id_by_telegram_id, get_user_by_link
+from bot.databases_methods.db_statistic import init_db_statistic, create_statistic, add_time_to_alltime, user_id_exist
 from telegram import ReplyKeyboardRemove
 from telegram.ext import (
     CommandHandler,
@@ -132,6 +133,13 @@ async def handle_create_event(update: Update, context: ContextTypes.DEFAULT_TYPE
     if failed_additions:
         response_message += "\n\nНе удалось создать встречу для следующих пользователей:\n"
         response_message += "\n".join(failed_additions)
+
+    meeting_duration = int((end_time - start_time).total_seconds() // 60)
+
+    if not user_id_exist(user_id):
+        create_statistic(user_id)
+
+    add_time_to_alltime(user_id, meeting_duration)
 
     await update.message.reply_text(response_message)
     return ConversationHandler.END
