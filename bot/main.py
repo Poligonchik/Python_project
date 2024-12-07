@@ -1,5 +1,12 @@
-from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ConversationHandler, ContextTypes, filters
+from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    ConversationHandler,
+    ContextTypes,
+    filters,
+)
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from google.auth.transport.requests import Request
@@ -15,17 +22,15 @@ SCOPES = ['https://www.googleapis.com/auth/calendar']
 (START, CHOICE, MEETING_OPTION, SET_EVENT_TITLE, SET_EVENT_DESCRIPTION,
  SET_EVENT_PARTICIPANTS, SET_EVENT_START, SET_EVENT_END, AUTH) = range(9)
 
-# Функции для работы с базой данных (предполагается, что они уже реализованы)
-from bot.databases_methods.db_user import init_db_user, add_user, get_user_by_link, edit_user_name, get_user_calendar_id, get_user_id_by_telegram_id
-from bot.databases_methods.db_user import edit_user_calendar_id
+from bot.databases_methods.db_user import (init_db_user, add_user, get_user_by_link, edit_user_name,
+                                           get_user_calendar_id, get_user_id_by_telegram_id, edit_user_calendar_id)
 from bot.databases_methods.db_meet import init_db_meet, create_meet
 from bot.databases_methods.db_team import init_db_team, create_team
 from bot.databases_methods.db_statistic import init_db_statistic, create_statistic, add_time_to_alltime
 from bot.databases_methods.db_sleep_time import init_db_sleep_time, create_sleep_time, edit_sleep_time_to, edit_sleep_time_from
 from bot.databases_methods.db_black_list import init_db_black_list, create_block
 
-from bot.edit_command import get_edit_handler, edit
-from bot.help_handler import help_command
+from bot.edit_command import get_edit_handler
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -85,11 +90,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             )
         else:
             await update.message.reply_text(
-                "Вы зарегистрированы, но не привязали календарь. Пришлите ссылку на ваш Google Календарь."
+                "Вы зарегистрированы, но не привязали календарь. Пришлите почту, к которой привязан Google Календарь"
             )
     else:
         await update.message.reply_text(
-            f"Здравствуйте, {user.full_name}, чтобы использовать бота, пришлите ссылку на ваш Google Календарь."
+            f"Здравствуйте, {user.full_name}, чтобы использовать бота, пришлите почту, к которой привязан ваш Google Календарь."
         )
         user_id = add_user(user.full_name, telegram_link, "")
         create_statistic(user_id)
@@ -102,9 +107,8 @@ async def choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     text = update.message.text
     logger.info(f"Выбранный текст: {text}")
     if text == "Добавить встречу":
+        # Создание встречи
         return await create_meeting(update, context)
-    elif text == "Редактировать профиль":
-        return await edit(update, context)
     elif text == "Статистика":
         await update.message.reply_text("Функционал статистики пока не реализован.")
         return ConversationHandler.END
@@ -112,11 +116,8 @@ async def choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return await handle_calendar_url(update, context)
 
 
-# Обработка ссылки на календарь
+# Обработка ссылки на календарь и привязка к пользователю
 async def handle_calendar_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """
-    Обрабатывает ссылку на Google Календарь и привязывает её к пользователю.
-    """
     telegram_username = update.message.from_user.username  # Берём username из Telegram
     logger.info(f"Telegram username: {telegram_username}")
     if not telegram_username:
@@ -133,11 +134,11 @@ async def handle_calendar_url(update: Update, context: ContextTypes.DEFAULT_TYPE
         return CHOICE
 
     # Извлечение Calendar ID из ссылки
-    url = "https://calendar.google.com/calendar/u/0/r?cid" + update.message.text.strip()
+    url = "https://calendar.google.com/calendar/u/0/r?cid=" + update.message.text.strip()
     calendar_id = extract_calendar_id(url)
     if not calendar_id:
         await update.message.reply_text(
-            "Не удалось распознать Calendar ID. Пожалуйста, отправьте корректную почту, к которой привязан Google Календарь."
+            "Не удалось распознать Calendar ID. Пожалуйста, отправьте корректную почту, к которой привзяна Google Календарь."
         )
         return CHOICE
 
@@ -203,6 +204,8 @@ async def handle_oauth_code(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 
+
+# Функция для создания события
 # Функция для создания события
 def create_event(creds, calendar_id, summary, description, start_time, end_time, attendees_emails=None):
     service = build('calendar', 'v3', credentials=creds)
@@ -217,6 +220,8 @@ def create_event(creds, calendar_id, summary, description, start_time, end_time,
     return service.events().insert(calendarId=calendar_id, body=event).execute()
 
 
+
+# Команда для создания встречи
 # Команда для создания встречи
 async def create_meeting(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_username = update.message.from_user.username
@@ -229,7 +234,7 @@ async def create_meeting(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return CHOICE
 
     if not calendar_id:
-        await update.message.reply_text("Не найден Calendar ID. Пожалуйста, отправьте ссылку на ваш Google Календарь.")
+        await update.message.reply_text("Не найден Calendar ID. Пожалуйста, отправьте почту, к которой привязан ваш Google Календарь.")
         return CHOICE
 
     # Сохраняем UserId инициатора и Calendar ID в user_data
@@ -384,10 +389,9 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("Диалог отменен. До встречи!", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
-main_keyboard = ReplyKeyboardMarkup(
-    [[KeyboardButton('/help'), KeyboardButton('/start')]],
-    resize_keyboard=True
-)
+# Команда /help
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text("Список команд:\n/start - начать\n/help - помощь\n/edit - редактировать\n/статистика - статистика\n/создать_встречу - добавить встречу")
 
 # Основная функция
 if __name__ == "__main__":
@@ -404,7 +408,7 @@ if __name__ == "__main__":
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
     # Обработчики команд
-    app.add_handler(help_command())
+    app.add_handler(CommandHandler("help", help_command))
     app.add_handler(get_edit_handler())
 
     # Обработчик диалога

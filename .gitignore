@@ -1,15 +1,19 @@
-# Ignore Google OAuth tokens
+# OAuth токены нам не нужны
 bot/token_*.pickle
 
-# Ignore Python cache
+# нам не нужен кэщ
 __pycache__/
 *.pyc
 
-# Ignore credentials
+# игнорируем json, а иначе все ляжет
 bot/calendari.json
 
-# Ignore environment variables file (если используете)
+# игноириуем дб
+bot/databases/*.db
+
+# их вроде нет, но пусть
 .env
 
+# на всякий
 *.db
 *.pickle
