@@ -30,11 +30,11 @@ async def create_meeting(update: Update, context: ContextTypes.DEFAULT_TYPE):
     calendar_id = get_user_calendar_id(user_id)
 
     if not creds or not creds.valid:
-        await update.message.reply_text("Сначала авторизуйте доступ к вашему Google Календарю.")
+        await update.message.reply_text("Авторизуйте доступ к вашему Google Календарю.")
         return SET_EVENT_TITLE_MP
 
     if not calendar_id:
-        await update.message.reply_text("Не найден Calendar ID. Пожалуйста, отправьте почту, к которой привязан ваш Google Календарь.")
+        await update.message.reply_text("Не найден Calendar ID. Отправьте идентификатор календаря")
         return SET_EVENT_TITLE_MP
 
     # Сохраняем UserId инициатора и Calendar ID в user_data
@@ -52,21 +52,21 @@ async def set_event_participants(update: Update, context: ContextTypes.DEFAULT_T
 
     if not participants:
         await update.message.reply_text(
-            "Вы не ввели ни одного участника. Если хотите добавить участников, введите их email через запятую. Если нет, просто отправьте пустое сообщение.")
+            "Вы не ввели ни одного участника. Если хотите добавить участников, введите их email через запятую")
 
     await update.message.reply_text(
-        "Введите дату и время начала встречи в формате ГГГГ-ММ-ДД ЧЧ:ММ (например, 2024-12-10 14:30):")
+        "Введите дату и время начала встречи в формате ГГГГ-ММ-ДД ЧЧ:ММ (например, 2024-12-31 17:45):")
     return SET_EVENT_START_MP
 
-# Новый этап: Установка названия события
+# Выбираем название события
 async def set_event_title(update: Update, context: ContextTypes.DEFAULT_TYPE):
     title = update.message.text.strip()
     context.user_data['event_title'] = title  # Сохраняем название события
-    await update.message.reply_text("Введите описание встречи (или оставьте пустым):")
+    await update.message.reply_text("Введите описание встречи:")
     return SET_EVENT_DESCRIPTION_MP
 
 
-# Новый этап: Установка описания события
+# Выбираем описание события
 async def set_event_description(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     description = update.message.text.strip()
     context.user_data['event_description'] = description  # Сохраняем описание события
@@ -74,16 +74,16 @@ async def set_event_description(update: Update, context: ContextTypes.DEFAULT_TY
     return SET_EVENT_PARTICIPANTS_MP
 
 
-# Новый этап: Установка времени начала встречи
+# Установка времени начала встречи
 async def set_event_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time_str = update.message.text.strip()
     try:
         start_time = datetime.strptime(start_time_str, "%Y-%m-%d %H:%M")
         context.user_data['event_start_time'] = start_time
-        await update.message.reply_text("Введите дату и время окончания встречи в формате ГГГГ-ММ-ДД ЧЧ:ММ (например, 2024-12-10 15:30):")
+        await update.message.reply_text("Введите дату и время окончания встречи в формате ГГГГ-ММ-ДД ЧЧ:ММ (например, 2024-12-31 18:45):")
         return SET_EVENT_END_MP
     except ValueError:
-        await update.message.reply_text("Некорректный формат времени. Попробуйте ещё раз.")
+        await update.message.reply_text("Некорректный формат времени. Попробуйте еще раз.")
         return SET_EVENT_START_MP
 
 async def set_event_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

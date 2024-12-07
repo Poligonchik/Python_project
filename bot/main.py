@@ -51,11 +51,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             )
         else:
             await update.message.reply_text(
-                "Вы зарегистрированы, но не привязали календарь. Пришлите почту, к которой привязан Google Календарь"
+                "Вы зарегистрированы, но не привязали календарь. Пришлите Идентификатор календаря."
             )
     else:
         await update.message.reply_text(
-            f"Здравствуйте, {user.full_name}, чтобы использовать бота, пришлите почту, к которой привязан ваш Google Календарь."
+            f"Здравствуйте, {user.full_name}, чтобы использовать бота, пришлите идентификатор календаря. "
+            f"Для главного календаря это ваша почта, а для остальных перейдите в настройки календаря -> "
+            f"Интеграция календаря -> Идентификатор календаря"
         )
         user_id = add_user(user.full_name, telegram_link, "")
         create_statistic(user_id)
@@ -87,11 +89,11 @@ async def meeting_option(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     calendar_id = get_user_calendar_id(user_id)
 
     if not creds or not creds.valid:
-        await update.message.reply_text("Сначала авторизуйте доступ к вашему Google Календарю.")
+        await update.message.reply_text("Сначала настройте доступ к вашему Google Календарю.")
         return ConversationHandler.END
 
     if not calendar_id:
-        await update.message.reply_text("Не найден Calendar ID. Отправьте ссылку на ваш Google Календарь.")
+        await update.message.reply_text("Не найден Calendar ID. Отправьте идентификатор Google Календаря.")
         return CHOICE
 
     if text == "Автоустановка времени":
@@ -142,7 +144,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 # Команда /help
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("Список команд:\n/start - начать\n/help - помощь\n/edit - редактировать\n/статистика - статистика\n/создать_встречу - добавить встречу")
+    await update.message.reply_text("Список команд:\n/start - начать\n/help - помощь\n/edit - редактировать\n/статистика - статистика\n/create_meeting - добавить встречу")
 
 # Основная функция
 if __name__ == "__main__":

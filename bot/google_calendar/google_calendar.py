@@ -13,9 +13,9 @@ logger = logging.getLogger(__name__)
 # Функции для извлечения и сохранения Calendar ID
 def extract_calendar_id(url):
     try:
-        parsed_url = urlparse(url)
-        query_params = parse_qs(parsed_url.query)
-        cid = query_params.get('cid')
+        parse = urlparse(url)
+        query = parse_qs(parse.query)
+        cid = query.get('cid')      # у нас тут строка запроса, в данном случае cid=...
         if cid:
             logger.info(f"Извлечённый Calendar ID: {cid[0]}")
             return cid[0]
@@ -23,25 +23,26 @@ def extract_calendar_id(url):
         logger.error(f"Ошибка извлечения Calendar ID: {e}")
     return None
 
-
+# Получение учетных данных
 def get_credentials(user_id):
-    creds_path = f"bot/token_{user_id}.pickle"
-    if os.path.exists(creds_path):
+    token_path = f"bot/token_{user_id}.pickle"  # Путь к токену
+    if os.path.exists(token_path):
         logger.info(f"Токен найден для пользователя {user_id}")
-        with open(creds_path, 'rb') as token:
-            creds = pickle.load(token)
+        with open(token_path, 'rb') as token:
+            creds = pickle.load(token)          # Загружаем токен
         if not creds.valid and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-            save_credentials(user_id, creds)
+            creds.refresh(Request())              # Если вдруг нет, то обновляем
+            save_credentials(user_id, creds)      # и сохраняем
         return creds
     else:
         logger.warning(f"Токен отсутствует для пользователя {user_id}")
     return None
 
+# Сохраняем новый токен
 def save_credentials(user_id, creds):
-    creds_path = f"bot/token_{user_id}.pickle"
-    with open(creds_path, 'wb') as token:
-        pickle.dump(creds, token)
+    token_path = f"bot/token_{user_id}.pickle"
+    with open(token_path, 'wb') as token:
+        pickle.dump(creds, token)   # берет creds и записывает в token
 
 # Функция для создания события
 def create_event(creds, calendar_id, summary, description, start_time, end_time, attendees_emails=None):

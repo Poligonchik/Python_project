@@ -13,10 +13,10 @@ SCOPES = ['https://www.googleapis.com/auth/calendar']
 # Обработка ссылки на календарь и привязка к пользователю
 async def handle_calendar_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     telegram_username = update.message.from_user.username  # Берём username из Telegram
-    logger.info(f"Telegram username: {telegram_username}")
+    logger.info(f"Tg username: {telegram_username}")
     if not telegram_username:
         await update.message.reply_text(
-            "Ваш Telegram аккаунт не имеет username. Пожалуйста, задайте username в настройках Telegram."
+            "Задайте username в настройках Telegram."
         )
         return CHOICE
 
@@ -24,22 +24,22 @@ async def handle_calendar_url(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_id = get_user_id_by_telegram_id(telegram_username)
     logger.info(f"UserId из базы: {user_id}")
     if not user_id:
-        await update.message.reply_text("Пользователь не найден в базе данных.")
+        await update.message.reply_text("Нет в базе данных.")
         return CHOICE
 
-    # Извлечение Calendar ID из ссылки
+    # Calendar ID из ссылки
     url = "https://calendar.google.com/calendar/u/0/r?cid=" + update.message.text.strip()
     calendar_id = extract_calendar_id(url)
     if not calendar_id:
         await update.message.reply_text(
-            "Не удалось распознать Calendar ID. Пожалуйста, отправьте корректную почту, к которой привзяна Google Календарь."
+            "Не удалось распознать Calendar ID. Пожалуйста, отправьте корректный идентификатор Google Календаря"
         )
         return CHOICE
 
     # Получение токена пользователя
     creds = get_credentials(user_id)
     if not creds or not creds.valid:
-        # Если токен недействителен, запрашиваем авторизацию
+        # Если токен недействителен, авторизуем через OAuth 2.0
         flow = InstalledAppFlow.from_client_secrets_file('bot/calendari.json', SCOPES)
         flow.redirect_uri = 'urn:ietf:wg:oauth:2.0:oob'
 
@@ -49,14 +49,14 @@ async def handle_calendar_url(update: Update, context: ContextTypes.DEFAULT_TYPE
         context.user_data['calendar_id'] = calendar_id
 
         await update.message.reply_text(
-            f"Пожалуйста, авторизуйте доступ к вашему Google Календарю, перейдя по ссылке:\n{auth_url}\n"
-            f"После авторизации введите полученный код сюда."
+            f"Авторизуйте доступ к вашему Google Календарю, перейдя по ссылке:\n{auth_url}\n"
+            f"После авторизации введите код сюда."
         )
-        return AUTH  # Переход в состояние ожидания кода авторизации
+        return AUTH  # Ожидания кода авторизации
 
     # Сохраняем Calendar ID в базе данных
     edit_user_calendar_id(user_id, calendar_id)
-    await update.message.reply_text("Ваш календарь успешно привязан!")
+    await update.message.reply_text("Поздравляем, вы привязали свой календарь!")
     return CHOICE
 
 
@@ -64,11 +64,11 @@ async def handle_calendar_url(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def handle_oauth_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     code = update.message.text.strip()
     telegram_username = update.message.from_user.username
-    user_id = get_user_id_by_telegram_id(telegram_username)  # Получаем UserId из базы
+    user_id = get_user_id_by_telegram_id(telegram_username)
 
     if not user_id:
-        await update.message.reply_text("Пользователь не найден в базе данных.")
-        logger.error(f"UserId равен None для пользователя с Telegram username: {telegram_username}")
+        await update.message.reply_text("Вас нет в базе данных( плак-плак, начните со /start")
+        logger.error(f"UserId = None для пользователя: {telegram_username}")
         return CHOICE
 
     flow = context.user_data.get('flow')
@@ -76,7 +76,7 @@ async def handle_oauth_code(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     if not flow:
         await update.message.reply_text(
-            "Не удалось найти активный OAuth процесс. Попробуйте снова отправить ссылку на календарь."
+            "Попробуйте снова отправить идентификатор календаря."
         )
         return CHOICE
 
@@ -91,5 +91,5 @@ async def handle_oauth_code(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return CHOICE
     except Exception as e:
         logger.error(f"Ошибка при авторизации: {e}")
-        await update.message.reply_text("Ошибка при авторизации. Попробуйте снова.")
+        await update.message.reply_text("Ошибка при авторизации. Попробуйте снова")
         return CHOICE
