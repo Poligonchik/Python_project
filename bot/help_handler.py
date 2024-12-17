@@ -8,7 +8,7 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/help - Список команд\n"
         "/edit - Редактирование данных пользователя\n"
         "/create_meeting - Добавить встречу\n"
-        "/meets - Управление встречами (пока не реализовано)"
+        "/meets - Управление встречами (пока не реализовано)\n"
         "/statistic - Статистика пользователя\n"
         "/cancel - Отменить текущее действие\n"
     )

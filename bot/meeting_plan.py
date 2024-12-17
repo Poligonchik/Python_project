@@ -45,7 +45,7 @@ async def set_event_title(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def set_event_description(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     description = update.message.text.strip()
     context.user_data['event_description'] = description  # Сохраняем описание события
-    await update.message.reply_text("Введите email участников встречи через запятую (например, email1@example.com, email2@example.com):")
+    await update.message.reply_text("Если хотите добавить участников, ввведите email участников встречи через запятую (например, email1@example.com, email2@example.com). Иначе введите -.")
     return SET_EVENT_PARTICIPANTS_MP
 
 async def set_event_participants(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
