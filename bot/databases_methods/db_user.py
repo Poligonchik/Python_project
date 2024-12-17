@@ -47,6 +47,16 @@ def get_user_by_link(telegram_link: str):
     conn.close()
     return user
 
+def get_email_by_user(telegram_link: str):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT GoogleCalendarLink FROM users WHERE TelegramLink = ?
+    """, (telegram_link,))
+    mail = cursor.fetchone()[0]
+    conn.close()
+    return mail
+
 def get_link_by_user_id(tg_id: str):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
