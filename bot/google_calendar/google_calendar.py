@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 SCOPES = ['https://www.googleapis.com/auth/calendar']
 
 # Функции для извлечения и сохранения Calendar ID
-async def extract_calendar_id(url):
+def extract_calendar_id(url):
     try:
         parse = urlparse(url)
         query = parse_qs(parse.query)
@@ -49,13 +49,13 @@ def get_credentials(user_id):
     return None
 
 # Сохраняем новый токен
-async def save_credentials(user_id, creds):
+def save_credentials(user_id, creds):
     token_path = f"bot/token_{user_id}.pickle"
     with open(token_path, 'wb') as token:
         pickle.dump(creds, token)   # Берет creds и записывает в token
 
 # Функция для создания события в календаре пользователя
-async def create_event(user_email, summary, description, start_time, end_time):
+def create_event(user_email, summary, description, start_time, end_time):
     user = get_user_by_email(user_email)
     if not user:
         logger.warning(f"Пользователь с email {user_email} не найден в базе данных.")
@@ -96,7 +96,7 @@ async def create_event(user_email, summary, description, start_time, end_time):
         logger.error(f"Ошибка при добавлении события в календарь {user_email}: {e}")
         return False, f"Ошибка при добавлении события в календарь {user_email}: {e}"
 
-async def delete_event(user_email, event_id):
+def delete_event(user_email, event_id):
     user = get_user_by_email(user_email)
     if not user:
         logger.warning(f"Пользователь с email {user_email} не найден в базе данных.")
