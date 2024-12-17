@@ -153,7 +153,7 @@ async def handle_create_event(update: Update, context: ContextTypes.DEFAULT_TYPE
     return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text("Диалог отменен.", reply_markup=ReplyKeyboardRemove())
+    await update.message.reply_text("Для добавления новой встречи нажмите /create_meeting \nДля просмотра доступных команд /help", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
 def get_meeting_handler() -> ConversationHandler:
