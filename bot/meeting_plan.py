@@ -3,6 +3,8 @@ from datetime import datetime, timedelta
 from bot.google_calendar.google_calendar import create_event
 from bot.databases_methods.db_user import get_user_id_by_telegram_id, get_user_by_link
 from bot.databases_methods.db_statistic import init_db_statistic, create_statistic, add_time_to_alltime, user_id_exist
+from bot.databases_methods.db_meet import create_meet
+from bot.databases_methods.db_team import create_team
 from telegram import ReplyKeyboardRemove
 from telegram.ext import (
     CommandHandler,
@@ -39,25 +41,27 @@ async def create_meeting(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def set_event_title(update: Update, context: ContextTypes.DEFAULT_TYPE):
     title = update.message.text.strip()
     context.user_data['event_title'] = title  # Сохраняем название события
-    await update.message.reply_text("Введите описание встречи:")
+    await update.message.reply_text("Введите описание встречи, если не хотите его добавлять введите -:")
     return SET_EVENT_DESCRIPTION_MP
 
 async def set_event_description(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     description = update.message.text.strip()
+    if description == "-":
+        description = ""
+
     context.user_data['event_description'] = description  # Сохраняем описание события
     await update.message.reply_text("Если хотите добавить участников, ввведите email участников встречи через запятую (например, email1@example.com, email2@example.com). Иначе введите -.")
     return SET_EVENT_PARTICIPANTS_MP
 
 async def set_event_participants(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     participants = update.message.text.strip().split(",")  # Разделяем email через запятую
-    participants = [email.strip() for email in participants if email.strip()]  # Убираем лишние пробелы и пустые строки
-    context.user_data['participants'] = participants  # Сохраняем список email
+    if update.message.text.strip() == "-":
+        participants = []
+    else:
+        participants = [email.strip() for email in participants if email.strip()]  # Убираем лишние пробелы и пустые строки
 
-    if not participants:
-        await update.message.reply_text(
-            "Вы не ввели ни одного участника. Если хотите добавить участников, введите их email через запятую."
-        )
-        return SET_EVENT_PARTICIPANTS_MP
+
+    context.user_data['participants'] = participants  # Сохраняем список email
 
     await update.message.reply_text(
         "Введите дату и время начала встречи в формате ГГГГ-ММ-ДД ЧЧ:ММ (например, 2024-12-31 17:45):"
@@ -98,6 +102,10 @@ async def handle_create_event(update: Update, context: ContextTypes.DEFAULT_TYPE
     start_time = context.user_data.get('event_start_time')
     end_time = context.user_data.get('event_end_time')
     participants = context.user_data.get('participants', [])
+    meet_id = create_meet(summary, description, start_time, end_time)
+
+    for mail in participants:
+        create_team(meet_id, mail)
 
     user_id = get_user_id_by_telegram_id(update.message.from_user.username)
     if user_id:
