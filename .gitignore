@@ -17,3 +17,7 @@ bot/databases/*.db
 # на всякий
 *.db
 *.pickle
+
+*.DS_Store
+*__pycache__
+*.idea
