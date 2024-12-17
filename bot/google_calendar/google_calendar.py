@@ -90,7 +90,7 @@ def create_event(user_email, summary, description, start_time, end_time):
 
     try:
         created_event = service.events().insert(calendarId=calendar_id, body=event).execute()
-        logger.info(f"Событие успешно добавлено в календарь {user_email}: {created_event.get('htmlLink')}")
+        logger.info(f"Событие добавлено в календарь {user_email}: {created_event.get('htmlLink')}")
         return True, f"Событие добавлено в календарь {user_email}."
     except Exception as e:
         logger.error(f"Ошибка при добавлении события в календарь {user_email}: {e}")

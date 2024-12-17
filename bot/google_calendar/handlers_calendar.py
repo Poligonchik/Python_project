@@ -56,7 +56,7 @@ async def handle_calendar_url(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # Сохраняем Calendar ID в базе данных
     edit_user_calendar_id(user_id, calendar_id)
-    await update.message.reply_text("Поздравляем, вы привязали свой календарь!")
+    await update.message.reply_text("Вы уже успели привязать свой календарь! Для просмотра команд нажмите /help")
     return CHOICE
 
 
@@ -87,7 +87,7 @@ async def handle_oauth_code(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         save_credentials(user_id, creds)  # Сохраняем токен под UserId
 
         edit_user_calendar_id(user_id, calendar_id)
-        await update.message.reply_text("Авторизация прошла успешно!")
+        await update.message.reply_text("Авторизация прошла успешно! Для просмотра команд нажмите /help")
         return CHOICE
     except Exception as e:
         logger.error(f"Ошибка при авторизации: {e}")

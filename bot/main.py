@@ -45,7 +45,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         calendar_id = curr_user[3]  # Поле GoogleCalendarLink
         if calendar_id:
             await update.message.reply_text(
-                f"Привет, {curr_user[1]}! Ваш календарь уже привязан.",
+                f"Привет, {curr_user[1]}! Ваш календарь уже привязан. Нажмите /help для просмотра команд",
                 reply_markup=ReplyKeyboardMarkup(
                     [["Добавить встречу", "Статистика", "Редактировать профиль"]],
                     resize_keyboard=True,
@@ -65,7 +65,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         user_id = add_user(user.full_name, telegram_link, "")
         create_statistic(user_id)
         create_sleep_time(user_id)
-        await update.message.reply_text()
     return CHOICE
 
 # Выбор действия
