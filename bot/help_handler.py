@@ -8,8 +8,8 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/help - Список команд\n"
         "/edit - Редактирование данных пользователя\n"
         "/create_meeting - Добавить встречу\n"
-        "/meets - Управление встречами (пока не реализовано)\n"
-        "/statistic - Статистика пользователя\n"
+        "/meets - Управление встречами (в разработке)\n"
+        "/statistic - Статистика пользователя (в разработке)\n"
         "/cancel - Отменить текущее действие\n"
     )
     await update.message.reply_text(help_text)

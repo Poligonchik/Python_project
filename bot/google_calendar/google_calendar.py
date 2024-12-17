@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 SCOPES = ['https://www.googleapis.com/auth/calendar']
 
 # Функции для извлечения и сохранения Calendar ID
-def extract_calendar_id(url):
+async def extract_calendar_id(url):
     try:
         parse = urlparse(url)
         query = parse_qs(parse.query)
@@ -49,13 +49,13 @@ def get_credentials(user_id):
     return None
 
 # Сохраняем новый токен
-def save_credentials(user_id, creds):
+async def save_credentials(user_id, creds):
     token_path = f"bot/token_{user_id}.pickle"
     with open(token_path, 'wb') as token:
         pickle.dump(creds, token)   # Берет creds и записывает в token
 
 # Функция для создания события в календаре пользователя
-def create_event(user_email, summary, description, start_time, end_time):
+async def create_event(user_email, summary, description, start_time, end_time):
     user = get_user_by_email(user_email)
     if not user:
         logger.warning(f"Пользователь с email {user_email} не найден в базе данных.")
@@ -95,3 +95,29 @@ def create_event(user_email, summary, description, start_time, end_time):
     except Exception as e:
         logger.error(f"Ошибка при добавлении события в календарь {user_email}: {e}")
         return False, f"Ошибка при добавлении события в календарь {user_email}: {e}"
+
+async def delete_event(user_email, event_id):
+    user = get_user_by_email(user_email)
+    if not user:
+        logger.warning(f"Пользователь с email {user_email} не найден в базе данных.")
+        return False, f"Пользователь с email {user_email} не найден."
+
+    user_id = user[0]
+    calendar_id = user[3]  # GoogleCalendarLink
+    if not calendar_id:
+        logger.warning(f"У пользователя {user_email} не привязан календарь.")
+        return False, f"У пользователя {user_email} не привязан календарь."
+
+    creds = get_credentials(user_id)
+    if not creds:
+        return False, f"Не удалось получить учетные данные для пользователя {user_email}."
+
+    service = build('calendar', 'v3', credentials=creds)
+
+    try:
+        service.events().delete(calendarId=calendar_id, eventId=event_id).execute()
+        logger.info(f"Событие {event_id} удалено из календаря для {user_email}.")
+        return True, f"Событие успешно удалено."
+    except Exception as e:
+        logger.error(f"Ошибка при удалении события {event_id} из календаря {user_email}: {e}")
+        return False, f"Ошибка при удалении события {event_id}: {e}"

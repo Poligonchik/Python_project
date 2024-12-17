@@ -25,6 +25,7 @@ from bot.databases_methods.db_black_list import init_db_black_list, create_block
 
 from bot.edit_command import get_edit_handler
 from bot.help_handler import help_command
+from bot.meets_handler import get_meet_handler
 from bot.google_calendar.google_calendar import extract_calendar_id, get_credentials, save_credentials, create_event
 from bot.google_calendar.handlers_calendar import handle_calendar_url, handle_oauth_code
 from bot.meeting_plan import create_meeting, get_meeting_handler, start_meeting
@@ -162,6 +163,7 @@ if __name__ == "__main__":
     app.add_handler(help_command())
     app.add_handler(get_edit_handler())
     app.add_handler(get_meeting_handler())
+    app.add_handler(get_meet_handler())
 
     # Обработчик диалога
     conv_handler = ConversationHandler(
