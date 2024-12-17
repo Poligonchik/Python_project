@@ -9,6 +9,7 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/edit - Редактирование данных пользователя\n"
         "/meets - Управление встречами\n"
         "/statistic - Статистика пользователя\n"
+        "/cancel - Отменить текущее действие\n"
     )
     await update.message.reply_text(help_text)
 

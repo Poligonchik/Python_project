@@ -24,6 +24,7 @@ from bot.databases_methods.db_sleep_time import init_db_sleep_time, create_sleep
 from bot.databases_methods.db_black_list import init_db_black_list, create_block
 
 from bot.edit_command import get_edit_handler
+from bot.help_handler import help_command
 from bot.google_calendar.google_calendar import extract_calendar_id, get_credentials, save_credentials, create_event
 from bot.google_calendar.handlers_calendar import handle_calendar_url, handle_oauth_code
 from bot.meeting_plan import create_meeting, get_meeting_handler, start_meeting
@@ -53,7 +54,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             )
         else:
             await update.message.reply_text(
-                "Вы зарегистрированы, но не привязали календарь. Пришлите Идентификатор календаря."
+                "Вы зарегистрированы, но не привязали календарь. Пришлите идентификатор календаря (почту, к которой привязан гугл календарь), чтобы продолжать работу."
             )
     else:
         await update.message.reply_text(
@@ -64,7 +65,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         user_id = add_user(user.full_name, telegram_link, "")
         create_statistic(user_id)
         create_sleep_time(user_id)
-        await update.message.reply_text(f"Вы зарегистрированы с ID {user_id}.")
+        await update.message.reply_text()
     return CHOICE
 
 # Выбор действия
@@ -144,10 +145,6 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("Диалог отменен. До встречи!", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
-# Команда /help
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("Список команд:\n/start - начать\n/help - помощь\n/edit - редактировать\n/статистика - статистика\n/create_meeting - добавить встречу")
-
 # Основная функция
 if __name__ == "__main__":
     # Инициализация базы данных
@@ -163,7 +160,7 @@ if __name__ == "__main__":
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
     # Обработчики команд
-    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(help_command())
     app.add_handler(get_edit_handler())
     app.add_handler(get_meeting_handler())
 

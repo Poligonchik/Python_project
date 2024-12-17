@@ -6,15 +6,13 @@ from datetime import datetime
 from bot.databases_methods.db_user import edit_user_name, get_user_by_link, get_link_by_user_id
 from bot.databases_methods.db_sleep_time import edit_sleep_time_to, edit_sleep_time_from, get_sleep_time
 from bot.databases_methods.db_black_list import create_block
-
+from bot.google_calendar.handlers_calendar import handle_calendar_url
 # Этапы диалога
-CHOICE_EDIT_DATA, EDIT_NAME, EDIT_TIME_FROM, EDIT_TIME_TO, BLOCK_USER = range(5)
+from bot.constants import CHOICE
 
+CHOICE, EDIT_NAME, EDIT_TIME_FROM, EDIT_TIME_TO, BLOCK_USER = range(5)
 # Команда /edit
 async def edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    reply_keyboard = [
-        ["Сменить имя", "Изменить время сна", "Изменить Гугл Календарь", "Добавить пользователя в черный список"],
-    ]
     user = update.message.from_user
     curr_user = get_user_by_link(user.username)
 
@@ -24,18 +22,24 @@ async def edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     mail = get_link_by_user_id(user.username)
     if mail == "":
         mail = "Почта не привязана к аккаунту"
+
     await update.message.reply_text(
         f'''Ваши данные:
     1. Имя пользователя {curr_user[1]}
     2. ТГ id @{user.username}
     3. Время сна {t_from.strftime('%H:%M')} - {t_to.strftime('%H:%M')}
     4. Почта, к которой привязан календарь: {mail}
-Выберите данные, которые хотите изменить:''',
-        reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True),
-    )
-    return CHOICE_EDIT_DATA
+    
+Выберите действие:
+    /edit_name - Сменить имя
+    /edit_sleep_time - Изменить время сна
+    /edit_calendar - Привязать другой календарь
+    /block_user - Добавить пользователя в черный список
+    /cancel - отмена''')
+    return ConversationHandler.END
+
 # Замена имени
-async def edit_user_name_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def edit_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("Пожалуйста, отправьте новое имя:")
     return EDIT_NAME
 
@@ -48,7 +52,7 @@ async def handle_new_name(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     return ConversationHandler.END
 
 # Изменение времени сна
-async def edit_sleep_time_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def edit_sleep_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text(
         "Пожалуйста, отправьте новое время начала сна в формате ЧЧ:ММ (например, 22:30):"
     )
@@ -107,7 +111,7 @@ async def handle_sleep_time(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     return ConversationHandler.END
 
 # Добавление в черный список
-async def add_user_to_black_list_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def block_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("Отправьте ник пользователя(@user) в формате user, без @")
     return BLOCK_USER
 
@@ -119,26 +123,11 @@ async def handle_block(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     await update.message.reply_text(f"Вы успешно заблокировали пользователя {blocked_user}!")
     return ConversationHandler.END
 
-# Выбор действия в меню редактирования
-async def choice_edit_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if update.message.text == "Сменить имя":
-        return await edit_user_name_prompt(update, context)
-
-    elif update.message.text == "Изменить время сна":
-        return await edit_sleep_time_prompt(update, context)
-
-    elif update.message.text == "Изменить Гугл Календарь":
-        pass
-        #from bot.main import handle_calendar_url
-        #return await handle_calendar_url(update, context)
-
-    elif update.message.text == "Добавить пользователя в черный список":
-        return await add_user_to_black_list_prompt(update, context)
-
-    else:
-        await update.message.reply_text("Пожалуйста, выберите из предложенных вариантов.")
-        return CHOICE_EDIT_DATA
-
+async def edit_calendar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Пришлите идентификатор календаря. "
+            f"Для главного календаря это ваша почта, а для остальных перейдите в настройки календаря -> "
+            f"Интеграция календаря -> Идентификатор календаря")
+    return CHOICE
 # Отмена диалога
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("Диалог отменен. До встречи!")
@@ -147,9 +136,13 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 # ConversationHandler для /edit
 def get_edit_handler() -> ConversationHandler:
     return ConversationHandler(
-        entry_points=[CommandHandler("edit", edit)],
+        entry_points=[CommandHandler("edit", edit),
+                      CommandHandler("edit_name", edit_name),
+                      CommandHandler("edit_sleep_time", edit_sleep_time),
+                      CommandHandler("edit_calendar", edit_calendar),
+                      CommandHandler("block_user", block_user),
+                     ],
         states={
-            CHOICE_EDIT_DATA: [MessageHandler(filters.TEXT & ~filters.COMMAND, choice_edit_data)],
             EDIT_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_new_name)],
             EDIT_TIME_FROM: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_sleep_time_prompt2)],
             EDIT_TIME_TO: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_sleep_time)],
