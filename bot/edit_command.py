@@ -32,12 +32,11 @@ async def edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     
 Выберите действие:
     /edit_name - Сменить имя
-    /edit_sleep_time - Изменить время сна
-    /edit_calendar - Привязать другой календарь
+    /edit_sleep_time - Изменить время сна 
     /block_user - Добавить пользователя в черный список
     /cancel - отмена''')
     return ConversationHandler.END
-
+#/edit_calendar - Привязать другой календарь
 # Замена имени
 async def edit_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("Пожалуйста, отправьте новое имя:")
