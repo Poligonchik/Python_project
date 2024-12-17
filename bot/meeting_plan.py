@@ -55,11 +55,10 @@ async def set_event_description(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def set_event_participants(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     participants = update.message.text.strip().split(",")  # Разделяем email через запятую
+    participants = [email.strip() for email in participants if email.strip()]  # Убираем лишние пробелы и пустые строки
+
     if update.message.text.strip() == "-":
         participants = []
-    else:
-        participants = [email.strip() for email in participants if email.strip()]  # Убираем лишние пробелы и пустые строки
-
 
     context.user_data['participants'] = participants  # Сохраняем список email
 

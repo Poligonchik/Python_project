@@ -23,7 +23,7 @@ def create_team(meet_id: int, mail: str):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT INTO black_list (MeetID, Mail) VALUES (?, ?)
+        INSERT INTO team (MeetID, Mail) VALUES (?, ?)
     """, (meet_id, mail))
     conn.commit()
     conn.close()
