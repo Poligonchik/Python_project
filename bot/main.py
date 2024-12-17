@@ -142,7 +142,7 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 # Отмена диалога
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text("Диалог отменен. До встречи!", reply_markup=ReplyKeyboardRemove())
+    await update.message.reply_text("Для добавления новой встречи нажмите /create_meeting \nДля просмотра доступных команд /help", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
 # Основная функция
