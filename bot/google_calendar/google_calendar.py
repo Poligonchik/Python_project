@@ -118,7 +118,7 @@ def delete_event(user_email, event_id):
     try:
         service.events().delete(calendarId=calendar_id, eventId=event_id).execute()
         logger.info(f"Событие {event_id} удалено из календаря для {user_email}.")
-        return True, f"Событие успешно удалено."
+        return True, f"Событие успешно удалено. \nУправеление встречами /meets \nПосмотр списка команд /help"
     except Exception as e:
         logger.error(f"Ошибка при удалении события {event_id} из календаря {user_email}: {e}")
         return False, f"Ошибка при удалении события {event_id}: {e}"

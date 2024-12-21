@@ -416,7 +416,7 @@ async def handle_create_event(update: Update, context: ContextTypes.DEFAULT_TYPE
         response_message += "\n\nНе удалось создать встречу для следующих пользователей:\n"
         response_message += "\n".join(failed_additions)
 
-    response_message += "\n\nДля продолжения работы нажмите /cancel\n"
+    response_message += "\n\nДля добавления новой встречи нажмите /create_meeting \nДля просмотра доступных команд /help"
     meeting_duration = int((end_time - start_time).total_seconds() // 60)
 
     if not user_id_exist(user_id):

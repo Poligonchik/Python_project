@@ -65,6 +65,8 @@ async def get_meets(update: Update, context: CallbackContext):
         start2 = start_dt.strftime("%d %B %Y %H:%M")
         ans += f'''{i}. "{summary}"\n Начало: {start2}\n\n'''
         i += 1
+
+    ans +=  "\nУправеление встречами /meets \nПосмотр списка команд /help"
     await update.message.reply_text(ans)  # Пример ответа
     return ConversationHandler.END
 
