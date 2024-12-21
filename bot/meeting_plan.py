@@ -3,10 +3,10 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackQueryHandler
 from datetime import datetime, timedelta
 from calendar import monthrange
-
+from googleapiclient.discovery import build
 from bot.edit_command import CHOICE
-from bot.google_calendar.google_calendar import create_event
-from bot.databases_methods.db_user import get_user_id_by_telegram_id, get_user_by_link
+from bot.google_calendar.google_calendar import create_event, get_credentials
+from bot.databases_methods.db_user import get_user_id_by_telegram_id, get_user_by_link, get_user_by_email
 from bot.databases_methods.db_statistic import init_db_statistic, create_statistic, add_time_to_alltime, user_id_exist
 from bot.databases_methods.db_meet import create_meet
 from bot.databases_methods.db_team import create_team
@@ -113,14 +113,136 @@ async def choice_way_to_create_time(update: Update, context: ContextTypes.DEFAUL
         await update.message.reply_text("Выберите год начала встречи:", reply_markup=get_year_buttons())
         return SET_EVENT_START_MP
     else:
-        await update.message.reply_text("Напишите продолжительность встречи в формате ЧЧ:ММ. Например 1:30 - полтора часа")
+        await update.message.reply_text("Напишите продолжительность встречи в минутах. Целое число например 120")
         return AUTOMAT_SET_TIME
 
 async def auto_set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Пока не реализованно")
+    meet_time = update.message.text
+    try:
+        meet_time = int(meet_time)
+    except ValueError:
+        await update.message.reply_text("Вы ввели некорректный запрос. Напишите продолжительность встречи в минутах (целое число)")
+        return AUTOMAT_SET_TIME
 
+    summary = context.user_data.get('event_title')
+    description = context.user_data.get('event_description')
+    now = datetime.utcnow().isoformat() + 'Z'
+    start_time = now
+    end_time = now
+    participants = context.user_data.get('participants', [])
+    user_id = get_user_id_by_telegram_id(update.message.from_user.username)
+
+    user = get_user_by_link(update.message.from_user.username)
+    creator_email = user[3]
+
+    if creator_email not in participants:
+        participants.append(creator_email)
+
+    if not user:
+        await update.message.reply_text(f"Пользователь с email {creator_email} не найден в базе данных.")
+        return ConversationHandler.END
+
+    user_id = user[0]
+    calendar_id = user[3]  # GoogleCalendarLink
+
+    if not calendar_id:
+        await update.message.reply_text(f"Вы не привязали календарь, сначала привяжите его. \start")
+        return ConversationHandler.END
+
+    creds = get_credentials(user_id)
+    service = build('calendar', 'v3', credentials=creds)
+
+    events_result = service.events().list(calendarId=calendar_id, timeMin=now, singleEvents=True,
+                                          orderBy='startTime').execute()
+    events = events_result.get('items', [])
+
+    skan_line = []
+    for event in events:
+        event_start = event['start'].get('dateTime', event['start'].get('date'))
+        event_end = event['end'].get('dateTime', event['end'].get('date'))
+
+        temp = (event_start, 1)
+        skan_line.append(temp)
+        temp = (event_end, -1)
+        skan_line.append(temp)
+
+    skan_line.sort(key=lambda x: x[0])
+
+    count = 0
+    f = 0
+
+    for i in range(len(skan_line) - 1):
+        count += skan_line[i][1]
+        time1 = datetime.fromisoformat(skan_line[i][0])
+        time2 = datetime.fromisoformat(skan_line[i + 1][0])
+
+        time_diff = (time2 - time1).total_seconds() / 60
+
+        if count == 0 and time_diff > meet_time:
+            f = 1
+            time_delta_s = timedelta(minutes=1)
+            start_time = time1 + time_delta_s
+            time_delta = timedelta(minutes=(meet_time))
+            end_time = start_time + time_delta
+            break
+
+    if f == 0:
+        if len(skan_line):
+            time_delta_s = timedelta(minutes=1)
+            start_time = datetime.fromisoformat(skan_line[len(skan_line) - 1][0]) + time_delta_s
+            time_delta = timedelta(minutes=(meet_time))
+            end_time = start_time + time_delta
+        else:
+            time_delta_s = timedelta(minutes=1)
+            start_time = datetime.now() + time_delta_s
+            time_delta = timedelta(minutes=(meet_time))
+            end_time = start_time + time_delta
+
+
+    meet_id = create_meet(summary, description, start_time, end_time)
+
+    for mail in participants:
+        create_team(meet_id, mail)
+
+    start_time_iso = start_time.isoformat()
+    end_time_iso = end_time.isoformat()
+
+    successful_additions = []
+    failed_additions = []
+
+    for email in participants:
+        success, message = create_event(
+            user_email=email,
+            summary=summary,
+            description=description,
+            start_time=start_time_iso,
+            end_time=end_time_iso
+        )
+        if success:
+            successful_additions.append(email)
+        else:
+            failed_additions.append(f"{email}: {message}")
+
+    start2 = start_time.strftime("%d %B %Y %H:%M")
+    response_message = f'''Создана встреча "{summary}". Встреча начнется в {start2}.\nДобавлены следующие пользователи:\n'''
+    if successful_additions:
+        response_message += "\n".join(successful_additions)
+
+    if failed_additions:
+        response_message += "\n\nНе удалось создать встречу для следующих пользователей:\n"
+        response_message += "\n".join(failed_additions)
+
+    response_message += "\n\nДля создания еще одной встречи введите /create_meeting\nДля просмотра списка команд введите /help"
+    meeting_duration = int((end_time - start_time).total_seconds() // 60)
+
+    if not user_id_exist(user_id):
+        create_statistic(user_id)
+
+    add_time_to_alltime(user_id, meeting_duration)
+
+    await update.message.reply_text(response_message)
     return ConversationHandler.END
+
 
 async def handle_time_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Выбор года, месяца и дня для НАЧАЛА встречи."""
@@ -255,15 +377,16 @@ async def handle_create_event(update: Update, context: ContextTypes.DEFAULT_TYPE
     participants = context.user_data.get('participants', [])
     meet_id = create_meet(summary, description, start_time, end_time)
 
-    for mail in participants:
-        create_team(meet_id, mail)
-
     user_id = get_user_id_by_telegram_id(update.message.from_user.username)
-    if user_id:
-        user = get_user_by_link(update.message.from_user.username)
-        creator_email = user[3]
+
+    user = get_user_by_link(update.message.from_user.username)
+    creator_email = user[3]
+
     if creator_email not in participants:
         participants.append(creator_email)
+
+    for mail in participants:
+        create_team(meet_id, mail)
 
     # Форматируем время в ISO формат
     start_time_iso = start_time.isoformat()

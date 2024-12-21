@@ -68,6 +68,7 @@ def create_event(user_email, summary, description, start_time, end_time):
         return False, f"У пользователя {user_email} не привязан календарь."
 
     # Проверка времени сна
+    '''
     sleep_time = get_sleep_time(user_id)
     if sleep_time:
         sleep_start = datetime.strptime(sleep_time[1], "%Y-%m-%d %H:%M:%S")
@@ -78,7 +79,7 @@ def create_event(user_email, summary, description, start_time, end_time):
         if (event_start < sleep_end) and (event_end > sleep_start):
             logger.info(f"Событие перекрывается с временем сна пользователя {user_email}. Пропуск.")
             return False, f"Событие перекрывается с временем сна пользователя {user_email}."
-
+    '''
     creds = get_credentials(user_id)
     service = build('calendar', 'v3', credentials=creds)
     event = {

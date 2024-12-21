@@ -4,7 +4,7 @@ from telegram.ext import CommandHandler, ContextTypes
 async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = (
         "Список доступных команд:\n"
-        "/start - Начало работы\n"
+        "/start - Начало работы, регистрация\n"
         "/help - Список команд\n"
         "/edit - Редактирование данных пользователя\n"
         "/meets - Управление встречами (в разработке)\n"
