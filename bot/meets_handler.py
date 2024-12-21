@@ -11,8 +11,9 @@ DELETE_MEET = range(1)
 async def meets(update: Update, context: CallbackContext):
     user = update.message.from_user
     await update.message.reply_text('''Выберите действие:
+    /create_meeting - создание новой встречи
     /get_meets - просмотр ожидаемых событий
-    /edit_meet - редактировать встречу
+    /edit_meet - редактировать встречу (не сделано)
     /delete_meet - удалить встречу''')
     return ConversationHandler.END
 

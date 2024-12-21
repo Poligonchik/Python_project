@@ -3,6 +3,8 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackQueryHandler
 from datetime import datetime, timedelta
 from calendar import monthrange
+
+from bot.edit_command import CHOICE
 from bot.google_calendar.google_calendar import create_event
 from bot.databases_methods.db_user import get_user_id_by_telegram_id, get_user_by_link
 from bot.databases_methods.db_statistic import init_db_statistic, create_statistic, add_time_to_alltime, user_id_exist
@@ -21,9 +23,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Этапы диалога
-(SET_EVENT_TITLE_MP, SET_EVENT_DESCRIPTION_MP,
+(SET_EVENT_TITLE_MP, SET_EVENT_DESCRIPTION_MP, CHOICE_WAY_TO_CREATE_TIME, AUTOMAT_SET_TIME,
  SET_EVENT_PARTICIPANTS_MP, SET_EVENT_START_MP,
- SET_EVENT_START_TIME_MP, SET_EVENT_END_DATE_MP, SET_EVENT_END_TIME_MP) = range(10, 17)
+ SET_EVENT_START_TIME_MP, SET_EVENT_END_DATE_MP, SET_EVENT_END_TIME_MP) = range(10, 19)
 
 async def start_meeting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     # Логика для начала создания встречи
@@ -56,6 +58,7 @@ async def set_event_description(update: Update, context: ContextTypes.DEFAULT_TY
     context.user_data['event_description'] = description  # Сохраняем описание события
     await update.message.reply_text("Если хотите добавить участников, ввведите email участников встречи через запятую (например, email1@example.com, email2@example.com). Иначе введите -.")
     return SET_EVENT_PARTICIPANTS_MP
+
 
 def get_year_buttons():
     """Кнопки для выбора года."""
@@ -99,8 +102,25 @@ async def set_event_participants(update: Update, context: ContextTypes.DEFAULT_T
     context.user_data['participants'] = participants  # Сохраняем список email
 
     # Выбор года
-    await update.message.reply_text("Выберите год начала встречи:", reply_markup = get_year_buttons())
-    return SET_EVENT_START_MP
+
+    await update.message.reply_text(
+        "Вы можете самостоятельно назначить время встречи для этого введите - 1. Или установить время встречи автоматически. Программа поставит встречу, на ближайшее время, в которое свободен каждый участник встречи. Для этого введите - 2.")
+    return CHOICE_WAY_TO_CREATE_TIME
+
+
+async def choice_way_to_create_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message.text == "1":
+        await update.message.reply_text("Выберите год начала встречи:", reply_markup=get_year_buttons())
+        return SET_EVENT_START_MP
+    else:
+        await update.message.reply_text("Напишите продолжительность встречи в формате ЧЧ:ММ. Например 1:30 - полтора часа")
+        return AUTOMAT_SET_TIME
+
+async def auto_set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Пока не реализованно")
+
+    return ConversationHandler.END
 
 async def handle_time_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Выбор года, месяца и дня для НАЧАЛА встречи."""
@@ -290,10 +310,14 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 def get_meeting_handler() -> ConversationHandler:
     return ConversationHandler(
-        entry_points=[CommandHandler("create_meeting", create_meeting)],
+        entry_points=[
+            CommandHandler("create_meeting", create_meeting),
+        ],
         states={
             SET_EVENT_TITLE_MP: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_event_title)],
             SET_EVENT_DESCRIPTION_MP: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_event_description)],
+            CHOICE_WAY_TO_CREATE_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, choice_way_to_create_time)],
+            AUTOMAT_SET_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, auto_set_time)],
             SET_EVENT_PARTICIPANTS_MP: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_event_participants)],
             SET_EVENT_START_MP: [CallbackQueryHandler(handle_time_selection)],
             SET_EVENT_START_TIME_MP: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_event_start_time)],
