@@ -118,7 +118,10 @@ async def handle_block(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     blocked_user = update.message.text
     user_id = update.effective_user.id
 
-    create_block(user_id, blocked_user)
+    if not create_block(user_id, blocked_user):
+        await update.message.reply_text("Пользователь не найден. Отправьте ник пользователя бота в телеграмме(@user) в формате user, то есть без @.\nИли /cancel - отмена дейстивия")
+        return BLOCK_USER
+
     await update.message.reply_text(f"Вы успешно заблокировали пользователя {blocked_user}!")
     return ConversationHandler.END
 

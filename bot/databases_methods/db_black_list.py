@@ -14,7 +14,7 @@ def init_db_black_list():
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS black_list (
-            UserId INTEGER PRIMARY KEY,
+            UserId INTEGER NOT NULL,
             BlockedUserId INTEGER NOT NULL
         )
     """)
@@ -23,7 +23,7 @@ def init_db_black_list():
 
 # Функция для добавления блокировки
 def create_block(user_id: int, blocked_user_link: str):
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path2)
     cursor = conn.cursor()
 
     cursor.execute(f"ATTACH DATABASE '{db_path2}' AS users_db")
@@ -35,14 +35,20 @@ def create_block(user_id: int, blocked_user_link: str):
     """, (blocked_user_link,))
 
     result = cursor.fetchone()
+
     if result is None:
-        print("Пользователь не найден.")
-        return
+        return False
+
 
     blocked_user_id = result[0]
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
 
     cursor.execute("""
         INSERT INTO black_list (UserId, BlockedUserId) VALUES (?, ?)
     """, (user_id, blocked_user_id))
+
     conn.commit()
     conn.close()
+    return True
