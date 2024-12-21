@@ -1,9 +1,13 @@
+from time import sleep
+
 from telegram import Update
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackQueryHandler
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from calendar import monthrange
 from googleapiclient.discovery import build
+
+from bot.databases_methods.db_sleep_time import get_sleep_time
 from bot.edit_command import CHOICE
 from bot.google_calendar.google_calendar import create_event, get_credentials
 from bot.databases_methods.db_user import get_user_id_by_telegram_id, get_user_by_link, get_user_by_email
@@ -157,6 +161,43 @@ async def auto_set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     events = events_result.get('items', [])
 
     skan_line = []
+
+    sleep_time = get_sleep_time(user_id)
+
+    sleep_start = datetime.strptime(sleep_time[1], "%Y-%m-%d %H:%M:%S").time()
+    sleep_end = datetime.strptime(sleep_time[2], "%Y-%m-%d %H:%M:%S").time()
+
+    if (sleep_time[1] != sleep_time[2]) and ((24 * 60 - sleep_end.hour * 60 - sleep_end.minute + sleep_start.hour * 60 + sleep_start.minute) % (24 *60) < meet_time):
+        response_message = f"Ошибка создания встречи. Встреча длится дольше, чем бодрствует {creator_email}\n\nДля создания еще одной встречи введите /create_meeting\nДля просмотра списка команд введите /help."
+
+        await update.message.reply_text(response_message)
+        return ConversationHandler.END
+
+
+
+    temp_date = datetime.now().date()
+    temp_datetime = datetime.combine(temp_date, datetime.min.time())
+
+    if sleep_start < sleep_end:
+        for i in range(-1, 1500):
+            time_delta_d = timedelta(days=i)
+
+            temp = (str(temp_datetime + time_delta_d + timedelta(hours=sleep_start.hour, minutes=sleep_start.minute)), 1)
+            skan_line.append(temp)
+
+            temp = (str(temp_datetime + time_delta_d + timedelta(hours=sleep_end.hour, minutes=sleep_end.minute)), -1)
+            skan_line.append(temp)
+
+    if sleep_start > sleep_end:
+        for i in range(-1, 1500):
+            time_delta_d = timedelta(days=i)
+
+            temp = (str(temp_datetime + time_delta_d + timedelta(hours=sleep_start.hour, minutes=sleep_start.minute)), 1)
+            skan_line.append(temp)
+
+            temp = (str(temp_datetime + time_delta_d + timedelta(days=1) + timedelta(hours=sleep_end.hour, minutes=sleep_end.minute)), -1)
+            skan_line.append(temp)
+
     for event in events:
         event_start = event['start'].get('dateTime', event['start'].get('date'))
         event_end = event['end'].get('dateTime', event['end'].get('date'))
@@ -176,9 +217,13 @@ async def auto_set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         time1 = datetime.fromisoformat(skan_line[i][0])
         time2 = datetime.fromisoformat(skan_line[i + 1][0])
 
-        time_diff = (time2 - time1).total_seconds() / 60
+        time1 = time1.replace(tzinfo=timezone(timedelta(hours=3)))
+        time2 = time2.replace(tzinfo=timezone(timedelta(hours=3)))
 
-        if count == 0 and time_diff > meet_time:
+        time_diff = (time2 - time1).total_seconds() / 60
+        noww = datetime.now()
+        noww = noww.replace(tzinfo=timezone(timedelta(hours=3)))
+        if  time1 > noww and count == 0 and time_diff > meet_time:
             f = 1
             time_delta_s = timedelta(minutes=1)
             start_time = time1 + time_delta_s
@@ -233,7 +278,7 @@ async def auto_set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response_message += "\n".join(failed_additions)
 
     response_message += "\n\nДля создания еще одной встречи введите /create_meeting\nДля просмотра списка команд введите /help"
-    meeting_duration = int((end_time - start_time).total_seconds() // 60)
+    meeting_duration = meet_time * 60 * 60
 
     if not user_id_exist(user_id):
         create_statistic(user_id)
