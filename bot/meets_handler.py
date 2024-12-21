@@ -1,7 +1,11 @@
-from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
+import re
+from telegram import (Update, ReplyKeyboardMarkup, ReplyKeyboardRemove)
 from telegram.ext import CommandHandler, MessageHandler, ConversationHandler, ContextTypes, filters, CallbackContext, MessageHandler, ContextTypes, ConversationHandler, MessageHandler, CommandHandler, filters
 from bot.google_calendar.google_calendar import get_credentials, build
 from bot.databases_methods.db_user import get_email_by_user, get_user_by_email
+from datetime import datetime
+from googleapiclient.discovery import build
+
 async def meets(update: Update, context: CallbackContext):
     user = update.message.from_user
     await update.message.reply_text('''Выберите действие:
@@ -9,6 +13,7 @@ async def meets(update: Update, context: CallbackContext):
     /edit_meet - редактировать встречу
     /delete_meet - удалить встречу''')
     return ConversationHandler.END
+
 
 async def get_meets(update: Update, context: CallbackContext):
     user = update.message.from_user
@@ -31,7 +36,10 @@ async def get_meets(update: Update, context: CallbackContext):
 
     service = build('calendar', 'v3', credentials=creds)
 
-    events_result = service.events().list(calendarId=calendar_id, maxResults=10).execute()
+    # Получаем текущее время для фильтрации событий
+    now = datetime.utcnow().isoformat() + 'Z'  # 'Z' обозначает UTC время
+    events_result = service.events().list(calendarId=calendar_id, timeMin=now, maxResults=10, singleEvents=True,
+                                          orderBy='startTime').execute()
     events = events_result.get('items', [])
 
     if not events:
@@ -42,14 +50,17 @@ async def get_meets(update: Update, context: CallbackContext):
     for event in events:
         event_id = event['id']
         event_summary = event.get('summary', 'Без названия')
-        events_info.append((event_id, event_summary))
+        event_start = event['start'].get('dateTime', event['start'].get('date'))
+        events_info.append((event_id, event_summary, event_start))
 
     res = events_info
 
-    ans = "Ваш список встреч:\n"
+    ans = "Вот список предстоящих событий:\n"
     i = 1
-    for event_id, summary in res:
-        ans += f"{i}. {summary}\n"
+    for event_id, summary, start in res:
+        start_dt = datetime.fromisoformat(start[:-6])
+        start2 = start_dt.strftime("%d %B %Y %H:%M")
+        ans += f'''{i}. "{summary}"\n Начало: {start2}\n\n'''
         i += 1
     await update.message.reply_text(ans)  # Пример ответа
     return ConversationHandler.END
